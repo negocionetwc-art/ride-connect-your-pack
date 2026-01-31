@@ -62,13 +62,15 @@ export const AvatarUploadDialog = ({ open, onOpenChange }: AvatarUploadDialogPro
   const handleUpload = async () => {
     if (!selectedFile) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       toast({
         title: 'Erro',
-        description: 'Usuário não autenticado',
+        description: 'Você precisa estar autenticado para fazer upload. Por favor, faça login primeiro.',
         variant: 'destructive',
       });
+      onOpenChange(false);
       return;
     }
 

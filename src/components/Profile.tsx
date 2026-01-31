@@ -40,15 +40,27 @@ export const Profile = () => {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      setUser(currentUser);
-      setIsLoadingAuth(false);
+      try {
+        const { data: { user: currentUser }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error('Erro ao verificar usuário:', error);
+          setUser(null);
+        } else {
+          setUser(currentUser);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        setUser(null);
+      } finally {
+        setIsLoadingAuth(false);
+      }
     };
 
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
+      setIsLoadingAuth(false);
     });
 
     return () => {
