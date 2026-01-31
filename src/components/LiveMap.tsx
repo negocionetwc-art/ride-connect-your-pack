@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X } from 'lucide-react';
+import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X, MapPin, Loader2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon, LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { users, groups } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { createGroupMarkerIcon, createRiderMarkerIcon } from './MapMarker';
+import { createGroupMarkerIcon, createRiderMarkerIcon, createOwnLocationMarkerIcon } from './MapMarker';
 import { LocationDetailSheet } from './LocationDetailSheet';
+import { useLocationSharing } from '@/hooks/useLocationSharing';
+import { Switch } from '@/components/ui/switch';
+import { useQuery } from '@tanstack/react-query';
 
 type Group = Database['public']['Tables']['groups']['Row'];
 type UserLocation = Database['public']['Tables']['user_locations']['Row'];
@@ -41,9 +44,37 @@ export const LiveMap = () => {
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
 
-  // Carregar localização do usuário
+  // Hook de compartilhamento de localização
+  const {
+    isSharing,
+    currentLocation,
+    error: locationError,
+    isLoading: locationLoading,
+    toggleSharing,
+  } = useLocationSharing();
+
+  // Buscar perfil do usuário atual para avatar
+  const { data: currentUserProfile } = useQuery({
+    queryKey: ['current-user-profile'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      return data;
+    },
+  });
+
+  // Atualizar localização do mapa quando o usuário compartilhar
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (currentLocation) {
+      setUserLocation([currentLocation.latitude, currentLocation.longitude]);
+    } else if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
@@ -54,7 +85,7 @@ export const LiveMap = () => {
         }
       );
     }
-  }, []);
+  }, [currentLocation]);
 
   // Carregar grupos com localização do banco
   useEffect(() => {
@@ -103,9 +134,35 @@ export const LiveMap = () => {
             <Radio className="w-5 h-5 text-primary animate-pulse" />
             <h1 className="font-semibold">Mapa Ao Vivo</h1>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>{onlineRiders.length + onlineLocations.length} online</span>
+          <div className="flex items-center gap-3">
+            {/* Toggle de Compartilhamento */}
+            <div className="flex items-center gap-2">
+              <MapPin className={`w-4 h-4 ${isSharing ? 'text-green-500' : 'text-muted-foreground'}`} />
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Compartilhar</span>
+                  {locationLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  ) : (
+                    <Switch
+                      checked={isSharing}
+                      onCheckedChange={toggleSharing}
+                      disabled={locationLoading}
+                    />
+                  )}
+                </div>
+                {isSharing && (
+                  <span className="text-[10px] text-green-500">Ativo</span>
+                )}
+                {locationError && (
+                  <span className="text-[10px] text-destructive">{locationError}</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span>{onlineRiders.length + onlineLocations.length + (isSharing ? 1 : 0)} online</span>
+            </div>
           </div>
         </div>
       </header>
@@ -127,6 +184,29 @@ export const LiveMap = () => {
           />
 
           <MapCenter center={userLocation} />
+
+          {/* Marcador do próprio usuário quando compartilhando */}
+          {isSharing && currentLocation && (
+            <Marker
+              position={[currentLocation.latitude, currentLocation.longitude]}
+              icon={createOwnLocationMarkerIcon(
+                currentUserProfile?.avatar_url || undefined,
+                currentLocation.speed
+              )}
+            >
+              <Popup>
+                <div className="text-center">
+                  <h3 className="font-semibold text-green-600 dark:text-green-400">Você</h3>
+                  <p className="text-xs text-muted-foreground">Compartilhando localização</p>
+                  {currentLocation.speed !== undefined && (
+                    <p className="text-xs text-primary font-medium">
+                      {Math.round(currentLocation.speed)} km/h
+                    </p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          )}
 
           {/* Marcadores de Grupos */}
           {groupsWithLocation.map((group) => (

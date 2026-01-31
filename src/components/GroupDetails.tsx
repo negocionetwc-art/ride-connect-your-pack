@@ -21,14 +21,10 @@ import {
   Loader2,
   Crown,
   UserCog,
-  MapPin,
-  CheckCircle2,
 } from 'lucide-react';
 import { useJoinGroup, useLeaveGroup } from '@/hooks/useGroupMembership';
 import type { GroupWithDetails } from '@/hooks/useGroups';
 import type { Database } from '@/integrations/supabase/types';
-import { LocationRegistrationForm } from './LocationRegistrationForm';
-import { AnimatePresence } from 'framer-motion';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type GroupMembership = Database['public']['Tables']['group_memberships']['Row'];
@@ -45,7 +41,6 @@ interface GroupDetailsProps {
 
 export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
   const [userRole, setUserRole] = useState<GroupMembership['role'] | null>(group.userRole || null);
-  const [showLocationForm, setShowLocationForm] = useState(false);
   const joinGroup = useJoinGroup();
   const leaveGroup = useLeaveGroup();
 
@@ -244,29 +239,6 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
                 </div>
               )}
 
-              {/* Location Info */}
-              {effectiveIsMember && (group.latitude && group.longitude) && (
-                <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Localização Cadastrada</p>
-                    {group.address && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {group.address}
-                      </p>
-                    )}
-                    {group.is_visible_on_map && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <CheckCircle2 className="w-3 h-3 text-green-500" />
-                        <span className="text-xs text-muted-foreground">
-                          Visível no mapa
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <Separator />
 
               {/* Members List */}
@@ -359,20 +331,10 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
           ) : (
             <>
               {effectiveCanManage && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowLocationForm(true)}
-                    className="flex-1"
-                  >
-                    <MapPin className="w-4 h-4 mr-2" />
-                    {group.latitude && group.longitude ? 'Editar Localização' : 'Cadastrar Localização'}
-                  </Button>
-                  <Button variant="outline" className="flex-1">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Gerenciar Grupo
-                  </Button>
-                </>
+                <Button variant="outline" className="flex-1">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Gerenciar Grupo
+                </Button>
               )}
               <Button
                 variant="destructive"
@@ -396,21 +358,6 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
           )}
         </div>
       </DialogContent>
-
-      {/* Location Registration Form */}
-      <AnimatePresence>
-        {showLocationForm && (
-          <LocationRegistrationForm
-            group={group}
-            onClose={() => setShowLocationForm(false)}
-            onSuccess={() => {
-              setShowLocationForm(false);
-              // Recarregar dados do grupo se necessário
-              window.location.reload();
-            }}
-          />
-        )}
-      </AnimatePresence>
     </Dialog>
   );
 };
