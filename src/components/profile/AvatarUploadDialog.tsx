@@ -77,22 +77,6 @@ export const AvatarUploadDialog = ({ open, onOpenChange }: AvatarUploadDialogPro
     setIsUploading(true);
 
     try {
-      // Verificar se o bucket existe
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.error('Erro ao listar buckets:', bucketsError);
-        throw new Error('Erro ao acessar o storage');
-      }
-
-      const avatarsBucket = buckets?.find(b => b.id === 'avatars');
-      
-      if (!avatarsBucket) {
-        throw new Error(
-          'Bucket "avatars" não encontrado. Por favor, execute a migration do storage ou crie o bucket manualmente no Supabase Dashboard.'
-        );
-      }
-
       // Gerar nome único para o arquivo
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -109,6 +93,27 @@ export const AvatarUploadDialog = ({ open, onOpenChange }: AvatarUploadDialogPro
 
       if (uploadError) {
         console.error('Erro no upload:', uploadError);
+        const msg = (uploadError as any)?.message || String(uploadError);
+
+        // Mensagens comuns do Storage
+        if (msg.toLowerCase().includes('bucket') && msg.toLowerCase().includes('not found')) {
+          throw new Error(
+            'Bucket "avatars" não encontrado no projeto do Supabase. Crie o bucket "avatars" em Storage > Files, ou execute a migration `supabase/migrations/20260131160000_avatars_storage.sql`.'
+          );
+        }
+
+        // Bucket existe, mas sem policies/RLS (no seu print aparece Policies = 0)
+        if (
+          msg.toLowerCase().includes('row level security') ||
+          msg.toLowerCase().includes('violates row-level security') ||
+          msg.toLowerCase().includes('permission denied') ||
+          msg.toLowerCase().includes('not allowed')
+        ) {
+          throw new Error(
+            'Sem permissão para upload no bucket "avatars". No Supabase Dashboard, vá em Storage > Policies e crie as policies (veja `supabase/migrations/20260131160000_avatars_storage.sql`).'
+          );
+        }
+
         throw uploadError;
       }
 
