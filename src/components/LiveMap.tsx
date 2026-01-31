@@ -15,6 +15,18 @@ import { useQuery } from '@tanstack/react-query';
 
 type Group = Database['public']['Tables']['groups']['Row'];
 type UserLocation = Database['public']['Tables']['user_locations']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
+interface RiderInfo {
+  id: string;
+  name: string;
+  avatar: string;
+  bike?: string;
+  speed?: number;
+  level?: number;
+  totalKm?: number;
+  location?: { lat: number; lng: number };
+}
 
 const onlineRiders = users.filter(u => u.isOnline);
 
@@ -37,13 +49,13 @@ function MapCenter({ center }: { center: LatLngExpression }) {
 
 
 export const LiveMap = () => {
-  const [selectedRider, setSelectedRider] = useState<typeof users[0] | null>(null);
+  const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showSOS, setShowSOS] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
-  const [onlineRidersProfiles, setOnlineRidersProfiles] = useState<Map<string, Database['public']['Tables']['profiles']['Row']>>(new Map());
+  const [onlineRidersProfiles, setOnlineRidersProfiles] = useState<Map<string, Profile>>(new Map());
 
   // Hook de compartilhamento de localização
   const {
@@ -254,7 +266,16 @@ export const LiveMap = () => {
                 position={[rider.location.lat, rider.location.lng]}
                 icon={createRiderMarkerIcon(rider.avatar, rider.speed)}
                 eventHandlers={{
-                  click: () => setSelectedRider(rider),
+                  click: () => setSelectedRider({
+                    id: rider.id,
+                    name: rider.name,
+                    avatar: rider.avatar,
+                    bike: rider.bike,
+                    speed: rider.speed,
+                    level: rider.level,
+                    totalKm: rider.totalKm,
+                    location: rider.location,
+                  }),
                 }}
               >
                 <Popup>
@@ -287,7 +308,21 @@ export const LiveMap = () => {
                 )}
                 eventHandlers={{
                   click: () => {
-                    // TODO: Mostrar detalhes do rider
+                    if (profile) {
+                      setSelectedRider({
+                        id: location.user_id,
+                        name: profile.name,
+                        avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+                        bike: profile.bike || undefined,
+                        speed: location.speed_kmh ? Math.round(location.speed_kmh) : undefined,
+                        level: profile.level,
+                        totalKm: profile.total_km,
+                        location: {
+                          lat: location.latitude,
+                          lng: location.longitude,
+                        },
+                      });
+                    }
                   },
                 }}
               >
@@ -392,23 +427,31 @@ export const LiveMap = () => {
                 />
                 <div>
                   <h3 className="font-bold text-lg">{selectedRider.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedRider.bike}</p>
+                  {selectedRider.bike && (
+                    <p className="text-sm text-muted-foreground">{selectedRider.bike}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-secondary rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold text-primary">{selectedRider.speed}</p>
-                  <p className="text-xs text-muted-foreground">km/h</p>
-                </div>
-                <div className="bg-secondary rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold">{selectedRider.level}</p>
-                  <p className="text-xs text-muted-foreground">Nível</p>
-                </div>
-                <div className="bg-secondary rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold">{(selectedRider.totalKm / 1000).toFixed(1)}k</p>
-                  <p className="text-xs text-muted-foreground">km total</p>
-                </div>
+                {selectedRider.speed !== undefined && (
+                  <div className="bg-secondary rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-primary">{selectedRider.speed}</p>
+                    <p className="text-xs text-muted-foreground">km/h</p>
+                  </div>
+                )}
+                {selectedRider.level !== undefined && (
+                  <div className="bg-secondary rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold">{selectedRider.level}</p>
+                    <p className="text-xs text-muted-foreground">Nível</p>
+                  </div>
+                )}
+                {selectedRider.totalKm !== undefined && (
+                  <div className="bg-secondary rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold">{(selectedRider.totalKm / 1000).toFixed(1)}k</p>
+                    <p className="text-xs text-muted-foreground">km total</p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">
