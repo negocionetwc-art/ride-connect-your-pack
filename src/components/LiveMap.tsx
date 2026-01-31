@@ -43,6 +43,7 @@ export const LiveMap = () => {
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
+  const [onlineRidersProfiles, setOnlineRidersProfiles] = useState<Map<string, Database['public']['Tables']['profiles']['Row']>>(new Map());
 
   // Hook de compartilhamento de localização
   const {
@@ -105,16 +106,33 @@ export const LiveMap = () => {
     loadGroups();
   }, []);
 
-  // Carregar localizações de riders online
+  // Carregar localizações de riders online com perfis
   useEffect(() => {
     const loadOnlineLocations = async () => {
-      const { data, error } = await supabase
+      const { data: locationsData, error } = await supabase
         .from('user_locations')
         .select('*')
         .eq('is_online', true);
 
-      if (!error && data) {
-        setOnlineLocations(data);
+      if (!error && locationsData) {
+        setOnlineLocations(locationsData);
+        
+        // Buscar perfis dos riders online
+        const userIds = locationsData.map(loc => loc.user_id);
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', userIds);
+
+          if (profilesData) {
+            const profilesMap = new Map();
+            profilesData.forEach(profile => {
+              profilesMap.set(profile.id, profile);
+            });
+            setOnlineRidersProfiles(profilesMap);
+          }
+        }
       }
     };
 
@@ -255,27 +273,42 @@ export const LiveMap = () => {
           })}
 
           {/* Marcadores de Riders Online (banco de dados) */}
-          {onlineLocations.map((location) => (
-            <Marker
-              key={location.id}
-              position={[location.latitude, location.longitude]}
-              eventHandlers={{
-                click: () => {
-                  // Buscar dados do usuário para mostrar no popup
-                  // Por enquanto, apenas mostrar localização
-                },
-              }}
-            >
-              <Popup>
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Rider Online</p>
-                  {location.speed_kmh && (
-                    <p className="text-xs text-primary">{location.speed_kmh} km/h</p>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+          {onlineLocations.map((location) => {
+            const profile = onlineRidersProfiles.get(location.user_id);
+            const avatarUrl = profile?.avatar_url || undefined;
+            
+            return (
+              <Marker
+                key={location.id}
+                position={[location.latitude, location.longitude]}
+                icon={createRiderMarkerIcon(
+                  avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+                  location.speed_kmh || undefined
+                )}
+                eventHandlers={{
+                  click: () => {
+                    // TODO: Mostrar detalhes do rider
+                  },
+                }}
+              >
+                <Popup>
+                  <div className="text-center">
+                    {avatarUrl && (
+                      <img
+                        src={avatarUrl}
+                        alt={profile?.name || 'Rider'}
+                        className="w-12 h-12 rounded-full mx-auto mb-2"
+                      />
+                    )}
+                    <h3 className="font-semibold">{profile?.name || 'Rider Online'}</h3>
+                    {location.speed_kmh && (
+                      <p className="text-xs text-primary">{Math.round(location.speed_kmh)} km/h</p>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
 
         {/* SOS Button */}

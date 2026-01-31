@@ -38,20 +38,38 @@ export const createRiderMarkerIcon = (avatarUrl: string, speed?: number) => {
   const html = `
     <div style="
       position: relative;
-      width: 48px;
-      height: 48px;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     ">
+      <!-- Anel verde suave indicando online -->
       <div style="
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 3px solid rgba(34, 197, 94, 0.4);
+        box-shadow: 
+          0 0 0 2px rgba(34, 197, 94, 0.2),
+          0 0 20px rgba(34, 197, 94, 0.3);
+        animation: pulse-ring 2s ease-in-out infinite;
+      "></div>
+      
+      <!-- Foto do usuário -->
+      <div style="
+        position: relative;
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        border: 3px solid #ff6b00;
         overflow: hidden;
-        box-shadow: 0 0 15px rgba(255, 107, 0, 0.5);
-        background: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        border: 2px solid rgba(34, 197, 94, 0.6);
+        box-shadow: 
+          0 2px 8px rgba(0, 0, 0, 0.2),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        z-index: 1;
       ">
         <img 
           src="${avatarUrl}" 
@@ -60,49 +78,40 @@ export const createRiderMarkerIcon = (avatarUrl: string, speed?: number) => {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            display: block;
           "
-          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Ccircle cx=%2224%22 cy=%2224%22 r=%2224%22 fill=%22%23ff6b00%22/%3E%3C/svg%3E'"
+          onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'; this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;font-weight:bold\\'>🏍️</div>'"
         />
       </div>
+      
       ${speed !== undefined ? `
         <div style="
           position: absolute;
-          bottom: -8px;
+          bottom: -12px;
           left: 50%;
           transform: translateX(-50%);
-          background: #ff6b00;
+          background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
           color: white;
-          padding: 2px 6px;
-          border-radius: 8px;
+          padding: 3px 8px;
+          border-radius: 12px;
           font-size: 10px;
-          font-weight: bold;
+          font-weight: 600;
           white-space: nowrap;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        ">${speed} km/h</div>
+          box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          z-index: 2;
+        ">${Math.round(speed)} km/h</div>
       ` : ''}
-      <div style="
-        position: absolute;
-        top: -8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 16px;
-        height: 16px;
-        background: #22c55e;
-        border-radius: 50%;
-        border: 2px solid white;
-        box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
-        animation: pulse 2s infinite;
-      "></div>
     </div>
     <style>
-      @keyframes pulse {
+      @keyframes pulse-ring {
         0%, 100% {
-          transform: translateX(-50%) scale(1);
-          opacity: 1;
+          transform: scale(1);
+          opacity: 0.6;
         }
         50% {
-          transform: translateX(-50%) scale(1.2);
-          opacity: 0.7;
+          transform: scale(1.1);
+          opacity: 0.3;
         }
       }
     </style>
@@ -111,9 +120,9 @@ export const createRiderMarkerIcon = (avatarUrl: string, speed?: number) => {
   return new DivIcon({
     html,
     className: 'custom-rider-marker',
-    iconSize: [48, speed !== undefined ? 60 : 48],
-    iconAnchor: [24, speed !== undefined ? 60 : 48],
-    popupAnchor: [0, speed !== undefined ? -60 : -48],
+    iconSize: [56, speed !== undefined ? 68 : 56],
+    iconAnchor: [28, speed !== undefined ? 68 : 56],
+    popupAnchor: [0, speed !== undefined ? -68 : -56],
   });
 };
 
@@ -178,25 +187,40 @@ export const createOwnLocationMarkerIcon = (avatarUrl?: string, speed?: number) 
   const html = `
     <div style="
       position: relative;
-      width: 56px;
-      height: 56px;
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     ">
+      <!-- Anel verde suave duplo para destaque -->
       <div style="
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 56px;
-        height: 56px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
-        border: 4px solid #22c55e;
+        border: 3px solid rgba(34, 197, 94, 0.5);
+        box-shadow: 
+          0 0 0 3px rgba(34, 197, 94, 0.3),
+          0 0 0 6px rgba(34, 197, 94, 0.15),
+          0 0 25px rgba(34, 197, 94, 0.4);
+        animation: pulse-own-ring 2s ease-in-out infinite;
+      "></div>
+      
+      <!-- Foto do usuário -->
+      <div style="
+        position: relative;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
         overflow: hidden;
-        box-shadow: 0 0 20px rgba(34, 197, 94, 0.7);
-        background: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: pulse-own 2s infinite;
+        border: 3px solid rgba(34, 197, 94, 0.8);
+        box-shadow: 
+          0 4px 12px rgba(0, 0, 0, 0.3),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+          0 0 20px rgba(34, 197, 94, 0.5);
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        z-index: 1;
       ">
         ${avatarUrl ? `
           <img 
@@ -206,67 +230,55 @@ export const createOwnLocationMarkerIcon = (avatarUrl?: string, speed?: number) 
               width: 100%;
               height: 100%;
               object-fit: cover;
+              display: block;
             "
-            onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2256%22 height=%2256%22%3E%3Ccircle cx=%2228%22 cy=%2228%22 r=%2228%22 fill=%22%2322c55e%22/%3E%3C/svg%3E'"
+            onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'; this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:24px;font-weight:bold\\'>🏍️</div>'"
           />
         ` : `
           <div style="
             width: 100%;
             height: 100%;
-            background: #22c55e;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 24px;
             font-weight: bold;
-          ">Você</div>
+          ">🏍️</div>
         `}
       </div>
+      
       ${speed !== undefined ? `
         <div style="
           position: absolute;
-          bottom: -10px;
+          bottom: -14px;
           left: 50%;
           transform: translateX(-50%);
-          background: #22c55e;
+          background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
           color: white;
-          padding: 3px 8px;
-          border-radius: 10px;
+          padding: 4px 10px;
+          border-radius: 14px;
           font-size: 11px;
-          font-weight: bold;
+          font-weight: 600;
           white-space: nowrap;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          box-shadow: 
+            0 3px 10px rgba(34, 197, 94, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          z-index: 2;
         ">${Math.round(speed)} km/h</div>
       ` : ''}
-      <div style="
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 20px;
-        height: 20px;
-        background: #22c55e;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: bold;
-        color: white;
-      ">✓</div>
     </div>
     <style>
-      @keyframes pulse-own {
+      @keyframes pulse-own-ring {
         0%, 100% {
-          transform: translate(-50%, -50%) scale(1);
-          box-shadow: 0 0 20px rgba(34, 197, 94, 0.7);
+          transform: scale(1);
+          opacity: 0.7;
         }
         50% {
-          transform: translate(-50%, -50%) scale(1.05);
-          box-shadow: 0 0 30px rgba(34, 197, 94, 0.9);
+          transform: scale(1.15);
+          opacity: 0.4;
         }
       }
     </style>
@@ -275,8 +287,8 @@ export const createOwnLocationMarkerIcon = (avatarUrl?: string, speed?: number) 
   return new DivIcon({
     html,
     className: 'custom-own-location-marker',
-    iconSize: [56, speed !== undefined ? 70 : 56],
-    iconAnchor: [28, speed !== undefined ? 70 : 56],
-    popupAnchor: [0, speed !== undefined ? -70 : -56],
+    iconSize: [64, speed !== undefined ? 78 : 64],
+    iconAnchor: [32, speed !== undefined ? 78 : 64],
+    popupAnchor: [0, speed !== undefined ? -78 : -64],
   });
 };
