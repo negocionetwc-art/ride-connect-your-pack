@@ -5,6 +5,39 @@ import { toast } from '@/hooks/use-toast';
 export function useAuthEmailPassword() {
   const [isLoading, setIsLoading] = useState(false);
 
+  const signInWithGoogle = async () => {
+    setIsLoading(true);
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      // Normalmente o Supabase redireciona imediatamente; esse toast pode nem aparecer
+      toast({
+        title: 'Redirecionando...',
+        description: 'Abrindo login com Google',
+      });
+
+      return { data, error: null };
+    } catch (error: any) {
+      toast({
+        title: 'Erro no login com Google',
+        description: error.message || 'Não foi possível continuar com Google',
+        variant: 'destructive',
+      });
+      return { data: null, error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -201,6 +234,7 @@ export function useAuthEmailPassword() {
   };
 
   return {
+    signInWithGoogle,
     signIn,
     signUp,
     signOut,
