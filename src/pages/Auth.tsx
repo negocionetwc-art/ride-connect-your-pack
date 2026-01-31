@@ -152,13 +152,23 @@ export default function Auth() {
       });
 
       if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          toast.error('Email ou senha incorretos');
-        } else if (error.message.includes('Email not confirmed')) {
-          toast.error('Por favor, confirme seu email antes de fazer login');
+        let errorMessage = 'Não foi possível fazer login';
+        
+        if (error.message.includes('Invalid login credentials') || 
+            error.message.includes('invalid_credentials') ||
+            error.message.includes('Email or password is incorrect')) {
+          errorMessage = 'Email ou senha incorretos. Verifique suas credenciais ou crie uma conta.';
+        } else if (error.message.includes('Email not confirmed') || 
+                   error.message.includes('email_not_confirmed')) {
+          errorMessage = 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.';
+        } else if (error.message.includes('User not found') || 
+                   error.message.includes('user_not_found')) {
+          errorMessage = 'Usuário não encontrado. Verifique se o email está correto ou crie uma conta.';
         } else {
-          toast.error(error.message);
+          errorMessage = error.message;
         }
+        
+        toast.error(errorMessage);
         return;
       }
 

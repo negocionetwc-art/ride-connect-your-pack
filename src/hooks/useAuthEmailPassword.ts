@@ -26,12 +26,49 @@ export function useAuthEmailPassword() {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log('🔐 Tentando fazer login para:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro no login:', error);
+        
+        // Tratamento específico para diferentes tipos de erro
+        let errorMessage = 'Não foi possível fazer login';
+        
+        if (error.message.includes('Invalid login credentials') || 
+            error.message.includes('invalid_credentials') ||
+            error.message.includes('Email or password is incorrect')) {
+          errorMessage = 'Email ou senha incorretos. Verifique suas credenciais.';
+        } else if (error.message.includes('Email not confirmed') || 
+                   error.message.includes('email_not_confirmed')) {
+          errorMessage = 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.';
+        } else if (error.message.includes('User not found') || 
+                   error.message.includes('user_not_found')) {
+          errorMessage = 'Usuário não encontrado. Verifique se o email está correto ou crie uma conta.';
+        } else if (error.message.includes('Too many requests') || 
+                   error.message.includes('rate_limit')) {
+          errorMessage = 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.';
+        } else {
+          errorMessage = error.message || 'Não foi possível fazer login';
+        }
+        
+        toast({
+          title: 'Erro no login',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        
+        return { data: null, error: { ...error, message: errorMessage } };
+      }
+
+      console.log('✅ Login realizado com sucesso');
+      console.log('👤 Usuário:', data.user?.id);
+      console.log('📧 Email:', data.user?.email);
+      console.log('📧 Email confirmado?', data.user?.email_confirmed_at ? 'Sim' : 'Não');
 
       // Aguardar um pouco para garantir que a sessão foi estabelecida
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -43,9 +80,10 @@ export function useAuthEmailPassword() {
 
       return { data, error: null };
     } catch (error: any) {
+      console.error('❌ Erro inesperado no login:', error);
       toast({
         title: 'Erro no login',
-        description: error.message || 'Não foi possível fazer login',
+        description: error.message || 'Não foi possível fazer login. Tente novamente.',
         variant: 'destructive',
       });
       return { data: null, error };
