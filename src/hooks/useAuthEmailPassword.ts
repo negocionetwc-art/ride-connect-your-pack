@@ -5,6 +5,24 @@ import { toast } from '@/hooks/use-toast';
 export function useAuthEmailPassword() {
   const [isLoading, setIsLoading] = useState(false);
 
+  const checkUsernameAvailable = async (username: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username.toLowerCase().trim())
+        .maybeSingle();
+      
+      // Se não encontrou nenhum resultado (error.code === 'PGRST116'), username está disponível
+      // Se encontrou algum resultado, username já está em uso
+      return !data; // true se disponível (não encontrou)
+    } catch (error: any) {
+      console.error('Erro ao verificar username:', error);
+      // Em caso de erro, assumir que está disponível para não bloquear o cadastro
+      return true;
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -39,12 +57,29 @@ export function useAuthEmailPassword() {
   const signUp = async (email: string, password: string, name: string, username: string) => {
     setIsLoading(true);
     try {
-      // URL de redirecionamento após confirmação de email
+      // 1. Validar username ANTES de criar usuário
+      const normalizedUsername = username.toLowerCase().trim();
+      
+      if (normalizedUsername.length < 3) {
+        throw new Error('Username deve ter pelo menos 3 caracteres');
+      }
+
+      console.log('🔍 Verificando disponibilidade do username:', normalizedUsername);
+      const isAvailable = await checkUsernameAvailable(normalizedUsername);
+      
+      if (!isAvailable) {
+        throw new Error(`Username "${normalizedUsername}" já está em uso. Escolha outro.`);
+      }
+
+      console.log('✅ Username disponível, prosseguindo com cadastro');
+
+      // 2. URL de redirecionamento após confirmação de email
       const redirectUrl = `${window.location.origin}/`;
 
       console.log('📧 Iniciando cadastro para:', email);
       console.log('🔗 URL de redirecionamento:', redirectUrl);
 
+      // 3. Criar usuário no Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -52,13 +87,24 @@ export function useAuthEmailPassword() {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: name,
-            username: username,
+            username: normalizedUsername,
           },
         },
       });
 
       if (error) {
         console.error('❌ Erro no signUp:', error);
+        
+        // Tratamento específico para erros conhecidos
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+          throw new Error('Este email já está cadastrado');
+        }
+        
+        // Tratar erros de constraint do banco (username duplicado mesmo após validação)
+        if (error.message.includes('unique') || error.message.includes('duplicate') || error.message.includes('Database error')) {
+          throw new Error(`Username "${normalizedUsername}" já está em uso. Escolha outro.`);
+        }
+        
         throw error;
       }
 
@@ -67,22 +113,26 @@ export function useAuthEmailPassword() {
       console.log('📧 Email confirmado?', data.user?.email_confirmed_at ? 'Sim' : 'Não');
       console.log('🔐 Sessão criada?', data.session ? 'Sim' : 'Não');
 
-      // O perfil é criado automaticamente pelo trigger handle_new_user
-      // Mas vamos garantir que username seja único
+      // 4. Verificar se o perfil foi criado corretamente pelo trigger
       if (data.user) {
-        const { error: profileError } = await supabase
+        // Aguardar um pouco para o trigger processar
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verificar se o perfil foi criado
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .update({ username, name })
-          .eq('id', data.user.id);
+          .select('id, username, name')
+          .eq('id', data.user.id)
+          .single();
 
         if (profileError) {
-          console.error('Erro ao atualizar perfil:', profileError);
+          console.error('⚠️ Erro ao verificar perfil criado:', profileError);
         } else {
-          console.log('✅ Perfil atualizado com sucesso');
+          console.log('✅ Perfil criado com sucesso:', profile);
         }
       }
 
-      // Verificar se o email precisa ser confirmado
+      // 5. Verificar se o email precisa ser confirmado
       if (data.user && !data.session) {
         // Email de confirmação foi enviado (ou deveria ser)
         console.log('📧 Email de confirmação DEVERIA ter sido enviado');
@@ -93,7 +143,8 @@ export function useAuthEmailPassword() {
         
         toast({
           title: 'Conta criada!',
-          description: 'Verifique seu email para confirmar sua conta. O link de confirmação foi enviado.',
+          description: 'Verifique seu email para confirmar. Pode estar na pasta de spam.',
+          duration: 10000,
         });
       } else if (data.session) {
         // Usuário foi autenticado automaticamente (confirmação de email desabilitada)
@@ -205,6 +256,7 @@ export function useAuthEmailPassword() {
     signUp,
     signOut,
     resendConfirmationEmail,
+    checkUsernameAvailable,
     isLoading,
   };
 }

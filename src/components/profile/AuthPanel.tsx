@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useAuthEmailPassword } from '@/hooks/useAuthEmailPassword';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,9 @@ export const AuthPanel = () => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [showResendEmail, setShowResendEmail] = useState(false);
-  const { signIn, signUp, resendConfirmationEmail, isLoading } = useAuthEmailPassword();
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const { signIn, signUp, resendConfirmationEmail, checkUsernameAvailable, isLoading } = useAuthEmailPassword();
+  const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +39,57 @@ export const AuthPanel = () => {
     if (!email) return;
     await resendConfirmationEmail(email);
   };
+
+  const handleUsernameChange = async (value: string) => {
+    const normalizedValue = value.toLowerCase().trim();
+    setUsername(normalizedValue);
+    
+    // Limpar timeout anterior
+    if (usernameCheckTimeoutRef.current) {
+      clearTimeout(usernameCheckTimeoutRef.current);
+    }
+    
+    // Resetar status se muito curto
+    if (normalizedValue.length < 3) {
+      setUsernameStatus('idle');
+      return;
+    }
+    
+    // Validar formato básico
+    if (!/^[a-z0-9_]+$/.test(normalizedValue)) {
+      setUsernameStatus('idle');
+      return;
+    }
+    
+    // Debounce: aguardar 500ms antes de verificar
+    setUsernameStatus('checking');
+    usernameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const isAvailable = await checkUsernameAvailable(normalizedValue);
+        setUsernameStatus(isAvailable ? 'available' : 'taken');
+      } catch (error) {
+        console.error('Erro ao verificar username:', error);
+        setUsernameStatus('idle');
+      }
+    }, 500);
+  };
+
+  // Limpar timeout ao desmontar
+  useEffect(() => {
+    return () => {
+      if (usernameCheckTimeoutRef.current) {
+        clearTimeout(usernameCheckTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Resetar status do username ao alternar entre login/cadastro
+  useEffect(() => {
+    if (!isSignUp) {
+      setUsernameStatus('idle');
+      setUsername('');
+    }
+  }, [isSignUp]);
 
   return (
     <div className="min-h-screen pb-20 flex items-center justify-center px-4">
@@ -75,16 +128,57 @@ export const AuthPanel = () => {
                   <User className="w-4 h-4" />
                   @username
                 </Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="joao_rider"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  pattern="[a-z0-9_]+"
-                  title="Apenas letras minúsculas, números e underscore"
-                />
+                <div className="relative">
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="joao_rider"
+                    value={username}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    required
+                    pattern="[a-z0-9_]+"
+                    title="Apenas letras minúsculas, números e underscore"
+                    className={
+                      usernameStatus === 'taken'
+                        ? 'border-destructive pr-10'
+                        : usernameStatus === 'available'
+                        ? 'border-green-500 pr-10'
+                        : usernameStatus === 'checking'
+                        ? 'pr-10'
+                        : ''
+                    }
+                  />
+                  {usernameStatus === 'checking' && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {usernameStatus === 'available' && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    </div>
+                  )}
+                  {usernameStatus === 'taken' && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <XCircle className="w-4 h-4 text-destructive" />
+                    </div>
+                  )}
+                </div>
+                {usernameStatus === 'checking' && (
+                  <p className="text-xs text-muted-foreground">Verificando disponibilidade...</p>
+                )}
+                {usernameStatus === 'available' && (
+                  <p className="text-xs text-green-600">✓ Username disponível</p>
+                )}
+                {usernameStatus === 'taken' && (
+                  <p className="text-xs text-destructive">✗ Este username já está em uso</p>
+                )}
+                {username.length > 0 && username.length < 3 && (
+                  <p className="text-xs text-muted-foreground">Mínimo de 3 caracteres</p>
+                )}
+                {username.length > 0 && !/^[a-z0-9_]+$/.test(username) && (
+                  <p className="text-xs text-destructive">Apenas letras minúsculas, números e _</p>
+                )}
               </div>
             </>
           )}
@@ -123,7 +217,7 @@ export const AuthPanel = () => {
           <Button
             type="submit"
             className="w-full"
-            disabled={isLoading}
+            disabled={isLoading || (isSignUp && (usernameStatus === 'taken' || usernameStatus === 'checking' || username.length < 3))}
           >
             {isLoading ? 'Carregando...' : isSignUp ? 'Criar conta' : 'Entrar'}
           </Button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Bike, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Loader2, Bike, Mail, Lock, User, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
 import { z } from 'zod';
+import { useAuthEmailPassword } from '@/hooks/useAuthEmailPassword';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres');
@@ -23,6 +24,9 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const { checkUsernameAvailable } = useAuthEmailPassword();
+  const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -41,6 +45,71 @@ export default function Auth() {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const handleUsernameChange = async (value: string) => {
+    const normalizedValue = value.toLowerCase().trim();
+    setUsername(normalizedValue);
+    
+    // Limpar timeout anterior
+    if (usernameCheckTimeoutRef.current) {
+      clearTimeout(usernameCheckTimeoutRef.current);
+    }
+    
+    // Resetar status se muito curto
+    if (normalizedValue.length < 3) {
+      setUsernameStatus('idle');
+      // Limpar erro de username se existir
+      if (errors.username) {
+        const newErrors = { ...errors };
+        delete newErrors.username;
+        setErrors(newErrors);
+      }
+      return;
+    }
+    
+    // Validar formato básico
+    if (!/^[a-z0-9_]+$/.test(normalizedValue)) {
+      setUsernameStatus('idle');
+      setErrors({ ...errors, username: 'Apenas letras minúsculas, números e _' });
+      return;
+    }
+    
+    // Debounce: aguardar 500ms antes de verificar
+    setUsernameStatus('checking');
+    usernameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const isAvailable = await checkUsernameAvailable(normalizedValue);
+        setUsernameStatus(isAvailable ? 'available' : 'taken');
+        if (isAvailable) {
+          const newErrors = { ...errors };
+          delete newErrors.username;
+          setErrors(newErrors);
+        } else {
+          setErrors({ ...errors, username: 'Este username já está em uso' });
+        }
+      } catch (error) {
+        console.error('Erro ao verificar username:', error);
+        setUsernameStatus('idle');
+      }
+    }, 500);
+  };
+
+  // Limpar timeout ao desmontar
+  useEffect(() => {
+    return () => {
+      if (usernameCheckTimeoutRef.current) {
+        clearTimeout(usernameCheckTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Resetar status do username ao alternar entre login/cadastro
+  useEffect(() => {
+    if (isLogin) {
+      setUsernameStatus('idle');
+      setUsername('');
+    }
+  }, [isLogin]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -105,6 +174,12 @@ export default function Auth() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Verificar username antes de prosseguir
+    if (usernameStatus === 'taken' || usernameStatus === 'checking') {
+      toast.error('Por favor, escolha um username disponível');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const redirectUrl = `${window.location.origin}/`;
@@ -115,24 +190,26 @@ export default function Auth() {
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            name,
-            username,
+            full_name: name,
+            username: username.toLowerCase().trim(),
           },
         },
       });
 
       if (error) {
-        if (error.message.includes('already registered')) {
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
           toast.error('Este email já está cadastrado');
+        } else if (error.message.includes('unique') || error.message.includes('duplicate') || error.message.includes('Database error')) {
+          toast.error(`Username "${username}" já está em uso. Escolha outro.`);
         } else {
           toast.error(error.message);
         }
         return;
       }
 
-      toast.success('Cadastro realizado! Verifique seu email para confirmar.');
-    } catch (error) {
-      toast.error('Erro ao criar conta');
+      toast.success('Cadastro realizado! Verifique seu email para confirmar. Pode estar na pasta de spam.');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao criar conta');
     } finally {
       setIsLoading(false);
     }
@@ -194,16 +271,53 @@ export default function Auth() {
                       <span className="text-muted-foreground">@</span>
                       Username
                     </Label>
-                    <Input
-                      id="username"
-                      type="text"
-                      placeholder="seu_username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                      className={errors.username ? 'border-destructive' : ''}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="seu_username"
+                        value={username}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
+                        className={
+                          errors.username || usernameStatus === 'taken'
+                            ? 'border-destructive pr-10'
+                            : usernameStatus === 'available'
+                            ? 'border-green-500 pr-10'
+                            : usernameStatus === 'checking'
+                            ? 'pr-10'
+                            : ''
+                        }
+                      />
+                      {usernameStatus === 'checking' && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                      {usernameStatus === 'available' && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        </div>
+                      )}
+                      {usernameStatus === 'taken' && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <XCircle className="w-4 h-4 text-destructive" />
+                        </div>
+                      )}
+                    </div>
+                    {usernameStatus === 'checking' && (
+                      <p className="text-xs text-muted-foreground">Verificando disponibilidade...</p>
+                    )}
+                    {usernameStatus === 'available' && (
+                      <p className="text-xs text-green-600">✓ Username disponível</p>
+                    )}
+                    {usernameStatus === 'taken' && (
+                      <p className="text-xs text-destructive">✗ Este username já está em uso</p>
+                    )}
                     {errors.username && (
                       <p className="text-xs text-destructive">{errors.username}</p>
+                    )}
+                    {username.length > 0 && username.length < 3 && !errors.username && (
+                      <p className="text-xs text-muted-foreground">Mínimo de 3 caracteres</p>
                     )}
                   </div>
                 </>
@@ -248,7 +362,7 @@ export default function Auth() {
               <Button
                 type="submit"
                 className="w-full gap-2"
-                disabled={isLoading}
+                disabled={isLoading || (!isLogin && (usernameStatus === 'taken' || usernameStatus === 'checking' || username.length < 3))}
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
