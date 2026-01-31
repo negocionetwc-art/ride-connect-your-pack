@@ -15,6 +15,9 @@ export function useAuthEmailPassword() {
 
       if (error) throw error;
 
+      // Aguardar um pouco para garantir que a sessão foi estabelecida
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       toast({
         title: 'Sucesso!',
         description: 'Login realizado com sucesso',
@@ -36,10 +39,14 @@ export function useAuthEmailPassword() {
   const signUp = async (email: string, password: string, name: string, username: string) => {
     setIsLoading(true);
     try {
+      // URL de redirecionamento após confirmação de email
+      const redirectUrl = `${window.location.origin}/`;
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: name,
             username: username,
@@ -62,10 +69,20 @@ export function useAuthEmailPassword() {
         }
       }
 
-      toast({
-        title: 'Conta criada!',
-        description: 'Bem-vindo ao RideConnect!',
-      });
+      // Verificar se o email precisa ser confirmado
+      if (data.user && !data.session) {
+        // Email de confirmação foi enviado
+        toast({
+          title: 'Conta criada!',
+          description: 'Verifique seu email para confirmar sua conta. O link de confirmação foi enviado.',
+        });
+      } else if (data.session) {
+        // Usuário foi autenticado automaticamente (confirmação de email desabilitada)
+        toast({
+          title: 'Conta criada!',
+          description: 'Bem-vindo ao RideConnect!',
+        });
+      }
 
       return { data, error: null };
     } catch (error: any) {
