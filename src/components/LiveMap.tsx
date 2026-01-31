@@ -1,13 +1,98 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X } from 'lucide-react';
-import { users } from '@/data/mockData';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Icon, LatLngExpression } from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { users, groups } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+import { createGroupMarkerIcon, createRiderMarkerIcon } from './MapMarker';
+import { LocationDetailSheet } from './LocationDetailSheet';
+
+type Group = Database['public']['Tables']['groups']['Row'];
+type UserLocation = Database['public']['Tables']['user_locations']['Row'];
 
 const onlineRiders = users.filter(u => u.isOnline);
 
+// Configurar ícone padrão do Leaflet (necessário para React-Leaflet)
+delete (Icon.Default.prototype as any)._getIconUrl;
+Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+// Componente para centralizar o mapa na localização do usuário
+function MapCenter({ center }: { center: LatLngExpression }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [map, center]);
+  return null;
+}
+
+
 export const LiveMap = () => {
   const [selectedRider, setSelectedRider] = useState<typeof users[0] | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showSOS, setShowSOS] = useState(false);
+  const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
+  const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
+  const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
+
+  // Carregar localização do usuário
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        () => {
+          // Se falhar, usar localização padrão (São Paulo)
+          console.log('Geolocalização não disponível, usando localização padrão');
+        }
+      );
+    }
+  }, []);
+
+  // Carregar grupos com localização do banco
+  useEffect(() => {
+    const loadGroups = async () => {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('is_visible_on_map', true)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+
+      if (!error && data) {
+        setGroupsWithLocation(data);
+      }
+    };
+
+    loadGroups();
+  }, []);
+
+  // Carregar localizações de riders online
+  useEffect(() => {
+    const loadOnlineLocations = async () => {
+      const { data, error } = await supabase
+        .from('user_locations')
+        .select('*')
+        .eq('is_online', true);
+
+      if (!error && data) {
+        setOnlineLocations(data);
+      }
+    };
+
+    loadOnlineLocations();
+
+    // Atualizar a cada 10 segundos
+    const interval = setInterval(loadOnlineLocations, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen pb-20 relative">
@@ -20,78 +105,104 @@ export const LiveMap = () => {
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>{onlineRiders.length} online</span>
+            <span>{onlineRiders.length + onlineLocations.length} online</span>
           </div>
         </div>
       </header>
 
       {/* Map Container */}
       <div className="relative h-[calc(100vh-180px)] bg-secondary overflow-hidden">
-        {/* Fake Map Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary via-muted to-secondary">
-          <div className="absolute inset-0 opacity-30">
-            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-border" />
-              </pattern>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-          </div>
+        <MapContainer
+          center={userLocation}
+          zoom={13}
+          style={{ height: '100%', width: '100%', zIndex: 0 }}
+          zoomControl={true}
+        >
+          {/* Tiles escuros - CartoDB Dark Matter */}
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+            maxZoom={19}
+          />
 
-          {/* Roads */}
-          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 600">
-            <path d="M 50 0 Q 100 150 200 300 T 350 600" stroke="hsl(var(--muted-foreground))" strokeWidth="8" fill="none" opacity="0.3" />
-            <path d="M 0 200 Q 150 250 400 180" stroke="hsl(var(--muted-foreground))" strokeWidth="6" fill="none" opacity="0.3" />
-            <path d="M 0 450 Q 200 400 400 480" stroke="hsl(var(--muted-foreground))" strokeWidth="6" fill="none" opacity="0.3" />
-          </svg>
-        </div>
+          <MapCenter center={userLocation} />
 
-        {/* Riders on Map */}
-        {onlineRiders.map((rider, index) => (
-          <motion.button
-            key={rider.id}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: index * 0.2, type: 'spring' }}
-            onClick={() => setSelectedRider(rider)}
-            className="absolute"
-            style={{
-              left: `${20 + index * 25}%`,
-              top: `${25 + index * 18}%`,
-            }}
-          >
-            {/* Pulse Ring */}
-            <div className="absolute inset-0 -m-4">
-              <div className="w-16 h-16 rounded-full border-2 border-primary/40 animate-ping-slow" />
-            </div>
-            
-            {/* Avatar */}
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full border-3 border-primary overflow-hidden shadow-lg glow">
-                <img src={rider.avatar} alt={rider.name} className="w-full h-full object-cover" />
-              </div>
-              
-              {/* Speed Badge */}
-              <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 bg-primary rounded-full text-[10px] font-bold text-primary-foreground">
-                {rider.speed} km/h
-              </div>
-            </div>
-          </motion.button>
-        ))}
+          {/* Marcadores de Grupos */}
+          {groupsWithLocation.map((group) => (
+            <Marker
+              key={group.id}
+              position={[group.latitude!, group.longitude!]}
+              icon={createGroupMarkerIcon()}
+              eventHandlers={{
+                click: () => setSelectedGroup(group),
+              }}
+            >
+              <Popup>
+                <div className="text-center">
+                  <h3 className="font-semibold">{group.name}</h3>
+                  <p className="text-xs text-muted-foreground">{group.category}</p>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
-        {/* Current Location */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="relative">
-            <div className="absolute inset-0 -m-6 bg-primary/20 rounded-full animate-pulse" />
-            <div className="w-4 h-4 bg-primary rounded-full border-2 border-primary-foreground shadow-lg" />
-          </div>
-        </div>
+          {/* Marcadores de Riders Online (mock data) */}
+          {onlineRiders.map((rider) => {
+            if (!rider.location) return null;
+            return (
+              <Marker
+                key={rider.id}
+                position={[rider.location.lat, rider.location.lng]}
+                icon={createRiderMarkerIcon(rider.avatar, rider.speed)}
+                eventHandlers={{
+                  click: () => setSelectedRider(rider),
+                }}
+              >
+                <Popup>
+                  <div className="text-center">
+                    <img
+                      src={rider.avatar}
+                      alt={rider.name}
+                      className="w-12 h-12 rounded-full mx-auto mb-2"
+                    />
+                    <h3 className="font-semibold">{rider.name}</h3>
+                    <p className="text-xs text-primary">{rider.speed} km/h</p>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+
+          {/* Marcadores de Riders Online (banco de dados) */}
+          {onlineLocations.map((location) => (
+            <Marker
+              key={location.id}
+              position={[location.latitude, location.longitude]}
+              eventHandlers={{
+                click: () => {
+                  // Buscar dados do usuário para mostrar no popup
+                  // Por enquanto, apenas mostrar localização
+                },
+              }}
+            >
+              <Popup>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Rider Online</p>
+                  {location.speed_kmh && (
+                    <p className="text-xs text-primary">{location.speed_kmh} km/h</p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
 
         {/* SOS Button */}
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => setShowSOS(true)}
-          className="absolute bottom-6 right-4 p-4 bg-destructive rounded-full shadow-lg"
+          className="absolute bottom-6 right-4 p-4 bg-destructive rounded-full shadow-lg z-[1000]"
         >
           <AlertTriangle className="w-6 h-6 text-destructive-foreground" />
         </motion.button>
@@ -99,7 +210,7 @@ export const LiveMap = () => {
         {/* Convoy Mode Button */}
         <motion.button
           whileTap={{ scale: 0.95 }}
-          className="absolute bottom-6 left-4 flex items-center gap-2 px-4 py-3 bg-card rounded-full shadow-lg border border-border"
+          className="absolute bottom-6 left-4 flex items-center gap-2 px-4 py-3 bg-card rounded-full shadow-lg border border-border z-[1000]"
         >
           <Users className="w-5 h-5 text-primary" />
           <span className="text-sm font-medium">Modo Comboio</span>
@@ -107,7 +218,7 @@ export const LiveMap = () => {
       </div>
 
       {/* Online Riders List */}
-      <div className="absolute bottom-24 left-4 right-4">
+      <div className="absolute bottom-24 left-4 right-4 z-[1000]">
         <div className="bg-card rounded-2xl border border-border p-4 shadow-xl">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2">
@@ -197,6 +308,20 @@ export const LiveMap = () => {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Group Detail Sheet */}
+      <AnimatePresence>
+        {selectedGroup && (
+          <LocationDetailSheet
+            group={selectedGroup}
+            onClose={() => setSelectedGroup(null)}
+            onNavigate={(lat, lng) => {
+              // Opcional: centralizar mapa na localização
+              setUserLocation([lat, lng]);
+            }}
+          />
         )}
       </AnimatePresence>
 
