@@ -13,7 +13,8 @@ export const useLocationSharing = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const watchIdRef = useRef<number | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastDbWriteAtRef = useRef<number>(0);
 
   // Carregar estado inicial do banco
   useEffect(() => {
@@ -47,6 +48,10 @@ export const useLocationSharing = () => {
   // Salvar localização no banco
   const saveLocationToDatabase = async (location: LocationData) => {
     try {
+      // Atualiza o UI imediatamente (mesmo se o DB falhar)
+      setCurrentLocation(location);
+      setError(null);
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Usuário não autenticado');
@@ -68,8 +73,7 @@ export const useLocationSharing = () => {
       if (dbError) {
         throw dbError;
       }
-
-      setCurrentLocation(location);
+      lastDbWriteAtRef.current = Date.now();
     } catch (err: any) {
       console.error('Erro ao salvar localização:', err);
       setError(err.message || 'Erro ao salvar localização');
@@ -152,8 +156,15 @@ export const useLocationSharing = () => {
                 speed: pos.coords.speed ? (pos.coords.speed * 3.6) : undefined,
               };
 
-              // Atualizar a cada 5 segundos
-              await saveLocationToDatabase(newLocation);
+              // Alguns devices só disparam quando há movimento.
+              // Ainda assim, mantemos o DB “no máximo a cada 5s” via throttle.
+              const now = Date.now();
+              if (now - lastDbWriteAtRef.current >= 5000) {
+                await saveLocationToDatabase(newLocation);
+              } else {
+                // Mesmo sem escrever no DB, atualiza UI
+                setCurrentLocation(newLocation);
+              }
             },
             (err) => {
               console.error('Erro no rastreamento:', err);
@@ -164,11 +175,11 @@ export const useLocationSharing = () => {
             {
               enableHighAccuracy: true,
               timeout: 10000,
-              maximumAge: 5000,
+              maximumAge: 0,
             }
           );
 
-          // Backup: atualizar manualmente a cada 10 segundos também
+          // Forçar atualização periódica mesmo parado: a cada 5s
           intervalRef.current = setInterval(async () => {
             navigator.geolocation.getCurrentPosition(
               async (pos) => {
@@ -185,10 +196,10 @@ export const useLocationSharing = () => {
               {
                 enableHighAccuracy: true,
                 timeout: 5000,
-                maximumAge: 5000,
+                maximumAge: 0,
               }
             );
-          }, 10000);
+          }, 5000);
         },
         (err) => {
           setIsLoading(false);
