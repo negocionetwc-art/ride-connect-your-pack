@@ -11,8 +11,14 @@ import type { Database } from '@/integrations/supabase/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 
+type GroupProfile = {
+  id: string;
+  name: string;
+  username: string;
+};
+
 type Group = Database['public']['Tables']['groups']['Row'] & {
-  profiles?: Database['public']['Tables']['profiles']['Row'];
+  profiles?: GroupProfile | null;
 };
 
 export function GroupsManagement() {
