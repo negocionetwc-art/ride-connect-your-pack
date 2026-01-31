@@ -9,33 +9,6 @@ import { toast } from 'sonner';
 import { Loader2, Bike, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 
-const GoogleIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 48 48"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <path
-      d="M44.5 24.5c0-1.6-.1-2.7-.4-3.9H24v7.4h11.8c-.2 1.8-1.5 4.6-4.3 6.5l-.1.5 6.4 5 .4.1c3.7-3.4 5.9-8.4 5.9-15.6Z"
-      fill="#4285F4"
-    />
-    <path
-      d="M24 45c5.8 0 10.7-1.9 14.2-5.1l-6.8-5.1c-1.8 1.3-4.3 2.2-7.4 2.2-5.7 0-10.5-3.4-12.2-8.2l-.5.1-6.6 5.1-.2.5C8 40.7 15.6 45 24 45Z"
-      fill="#34A853"
-    />
-    <path
-      d="M11.8 28.8c-.4-1.2-.6-2.5-.6-3.8s.2-2.6.6-3.8l0-.5-6.8-5.2-.2.1C3.4 18.6 2.5 21.7 2.5 25s.9 6.4 2.5 9.4l6.8-5.1Z"
-      fill="#FBBC05"
-    />
-    <path
-      d="M24 13c3.8 0 6.3 1.6 7.8 2.9l5.7-5.6C34.7 7.7 29.8 5 24 5 15.6 5 8 9.3 4.8 15.6l7 5.4C13.5 16.4 18.3 13 24 13Z"
-      fill="#EA4335"
-    />
-  </svg>
-);
-
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres');
 const nameSchema = z.string().min(2, 'Nome deve ter pelo menos 2 caracteres');
@@ -165,25 +138,6 @@ export default function Auth() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: redirectUrl },
-      });
-
-      if (error) throw error;
-      toast.success('Redirecionando para o Google...');
-    } catch (error: any) {
-      toast.error(error.message || 'Não foi possível continuar com Google');
-    } finally {
-      // Na maioria dos casos haverá redirect e o finally nem executa, mas mantemos por segurança
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       {/* Background effects */}
@@ -214,25 +168,6 @@ export default function Auth() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4 mb-6">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={isLoading}
-                onClick={handleGoogleLogin}
-              >
-                <GoogleIcon className="w-5 h-5 mr-2" />
-                Continuar com Google
-              </Button>
-
-              <div className="flex items-center gap-3">
-                <div className="h-px bg-border flex-1" />
-                <span className="text-xs text-muted-foreground">ou</span>
-                <div className="h-px bg-border flex-1" />
-              </div>
-            </div>
-
             <form onSubmit={isLogin ? handleLogin : handleSignUp} className="space-y-4">
               {!isLogin && (
                 <>
