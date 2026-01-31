@@ -75,10 +75,27 @@ export const AvatarUploadDialog = ({ open, onOpenChange }: AvatarUploadDialogPro
     setIsUploading(true);
 
     try {
+      // Verificar se o bucket existe
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('Erro ao listar buckets:', bucketsError);
+        throw new Error('Erro ao acessar o storage');
+      }
+
+      const avatarsBucket = buckets?.find(b => b.id === 'avatars');
+      
+      if (!avatarsBucket) {
+        throw new Error(
+          'Bucket "avatars" não encontrado. Por favor, execute a migration do storage ou crie o bucket manualmente no Supabase Dashboard.'
+        );
+      }
+
       // Gerar nome único para o arquivo
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      // O caminho não deve incluir o nome do bucket, apenas o caminho dentro do bucket
+      const filePath = fileName;
 
       // Upload para storage
       const { error: uploadError } = await supabase.storage
@@ -88,7 +105,10 @@ export const AvatarUploadDialog = ({ open, onOpenChange }: AvatarUploadDialogPro
           upsert: true,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Erro no upload:', uploadError);
+        throw uploadError;
+      }
 
       // Obter URL pública
       const { data: { publicUrl } } = supabase.storage
