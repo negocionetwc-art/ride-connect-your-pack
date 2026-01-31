@@ -142,10 +142,69 @@ export function useAuthEmailPassword() {
     }
   };
 
+  const resendConfirmationEmail = async (email: string) => {
+    setIsLoading(true);
+    try {
+      // Usar signUp novamente com o mesmo email para reenviar confirmação
+      // O Supabase detecta que o email já existe e reenvia o email de confirmação
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: redirectUrl,
+          shouldCreateUser: false, // Não criar novo usuário, apenas reenviar
+        },
+      });
+
+      // Se signInWithOtp não funcionar, tentar método alternativo
+      if (error) {
+        // Método alternativo: fazer signUp novamente (Supabase detecta email existente)
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email,
+          password: 'temp_password_123', // Senha temporária, não será usada
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
+        });
+
+        if (signUpError) {
+          // Tratar erro de rate limit especificamente
+          if (signUpError.message.includes('rate limit') || 
+              signUpError.message.includes('rate_limit') ||
+              signUpError.message.includes('email rate limit')) {
+            throw new Error(
+              'Limite de emails excedido. Aguarde 1 hora ou desabilite confirmação de email no Dashboard para desenvolvimento.'
+            );
+          }
+          throw signUpError;
+        }
+      }
+
+      toast({
+        title: 'Email reenviado!',
+        description: 'Verifique sua caixa de entrada (e pasta de spam) para o link de confirmação.',
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Erro ao reenviar email:', error);
+      toast({
+        title: 'Erro ao reenviar email',
+        description: error.message || 'Não foi possível reenviar o email de confirmação',
+        variant: 'destructive',
+      });
+      return { error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     signIn,
     signUp,
     signOut,
+    resendConfirmationEmail,
     isLoading,
   };
 }

@@ -12,15 +12,30 @@ export const AuthPanel = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
-  const { signIn, signUp, isLoading } = useAuthEmailPassword();
+  const [showResendEmail, setShowResendEmail] = useState(false);
+  const { signIn, signUp, resendConfirmationEmail, isLoading } = useAuthEmailPassword();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSignUp) {
-      await signUp(email, password, name, username);
+      const result = await signUp(email, password, name, username);
+      // Se o cadastro foi bem-sucedido mas não há sessão, significa que precisa confirmar email
+      if (result?.data?.user && !result?.data?.session) {
+        setShowResendEmail(true);
+      }
     } else {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      // Se o login falhou por email não confirmado, mostrar opção de reenviar
+      if (result?.error?.message?.includes('Email not confirmed') || 
+          result?.error?.message?.includes('email not confirmed')) {
+        setShowResendEmail(true);
+      }
     }
+  };
+
+  const handleResendEmail = async () => {
+    if (!email) return;
+    await resendConfirmationEmail(email);
   };
 
   return (
@@ -114,10 +129,35 @@ export const AuthPanel = () => {
           </Button>
         </form>
 
+        {showResendEmail && (
+          <div className="p-4 bg-primary/10 rounded-lg border border-primary/30">
+            <p className="text-sm text-muted-foreground mb-2">
+              Não recebeu o email de confirmação?
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResendEmail}
+              disabled={isLoading}
+              className="w-full"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Reenviar email de confirmação
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              ⚠️ Se aparecer erro de "rate limit", aguarde 1h ou desabilite confirmação de email no Dashboard
+            </p>
+          </div>
+        )}
+
         <div className="text-center">
           <button
             type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setShowResendEmail(false);
+            }}
             className="text-sm text-primary hover:underline"
           >
             {isSignUp
