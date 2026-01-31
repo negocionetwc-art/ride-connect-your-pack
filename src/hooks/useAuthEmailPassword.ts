@@ -42,6 +42,9 @@ export function useAuthEmailPassword() {
       // URL de redirecionamento após confirmação de email
       const redirectUrl = `${window.location.origin}/`;
 
+      console.log('📧 Iniciando cadastro para:', email);
+      console.log('🔗 URL de redirecionamento:', redirectUrl);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -54,7 +57,15 @@ export function useAuthEmailPassword() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro no signUp:', error);
+        throw error;
+      }
+
+      console.log('✅ SignUp realizado com sucesso');
+      console.log('👤 Usuário criado:', data.user?.id);
+      console.log('📧 Email confirmado?', data.user?.email_confirmed_at ? 'Sim' : 'Não');
+      console.log('🔐 Sessão criada?', data.session ? 'Sim' : 'Não');
 
       // O perfil é criado automaticamente pelo trigger handle_new_user
       // Mas vamos garantir que username seja único
@@ -66,18 +77,27 @@ export function useAuthEmailPassword() {
 
         if (profileError) {
           console.error('Erro ao atualizar perfil:', profileError);
+        } else {
+          console.log('✅ Perfil atualizado com sucesso');
         }
       }
 
       // Verificar se o email precisa ser confirmado
       if (data.user && !data.session) {
-        // Email de confirmação foi enviado
+        // Email de confirmação foi enviado (ou deveria ser)
+        console.log('📧 Email de confirmação DEVERIA ter sido enviado');
+        console.log('⚠️ Se o email não chegou, verifique:');
+        console.log('   1. Configurações no Supabase Dashboard (Authentication > Settings)');
+        console.log('   2. Pasta de spam');
+        console.log('   3. Se "Enable email confirmations" está habilitado');
+        
         toast({
           title: 'Conta criada!',
           description: 'Verifique seu email para confirmar sua conta. O link de confirmação foi enviado.',
         });
       } else if (data.session) {
         // Usuário foi autenticado automaticamente (confirmação de email desabilitada)
+        console.log('✅ Usuário autenticado automaticamente (confirmação de email desabilitada)');
         toast({
           title: 'Conta criada!',
           description: 'Bem-vindo ao RideConnect!',
@@ -86,6 +106,7 @@ export function useAuthEmailPassword() {
 
       return { data, error: null };
     } catch (error: any) {
+      console.error('❌ Erro completo no signUp:', error);
       toast({
         title: 'Erro ao criar conta',
         description: error.message || 'Não foi possível criar a conta',
