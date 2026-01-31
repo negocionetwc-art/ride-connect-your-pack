@@ -10,8 +10,14 @@ import type { Database } from '@/integrations/supabase/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale/pt-BR';
 
+type PostProfile = {
+  id: string;
+  name: string;
+  username: string;
+};
+
 type Post = Database['public']['Tables']['posts']['Row'] & {
-  profiles?: Database['public']['Tables']['profiles']['Row'];
+  profiles?: PostProfile | null;
 };
 
 export function PostsManagement() {
