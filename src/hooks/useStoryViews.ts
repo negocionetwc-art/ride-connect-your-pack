@@ -21,44 +21,63 @@ export function useStoryViews(storyId?: string) {
         return { views: [], count: 0 };
       }
 
-      // Buscar visualizações (simplificado para evitar erros de foreign key)
-      const { data, error, count } = await supabase
-        .from('story_views')
-        .select('id, viewer_id, viewed_at', { count: 'exact' })
-        .eq('story_id', storyId)
-        .order('viewed_at', { ascending: false });
+      try {
+        // Buscar visualizações (simplificado para evitar erros de foreign key)
+        const { data, error, count } = await supabase
+          .from('story_views')
+          .select('id, viewer_id, viewed_at', { count: 'exact' })
+          .eq('story_id', storyId)
+          .order('viewed_at', { ascending: false });
 
-      if (error) {
-        console.error('Erro ao buscar visualizações:', error);
+        if (error) {
+          console.error('Erro ao buscar visualizações:', error);
+          return { views: [], count: 0 };
+        }
+
+        if (!data || data.length === 0) {
+          return { views: [], count: 0 };
+        }
+
+        // Buscar perfis separadamente se necessário
+        const viewerIds = [...new Set(data.map((v: any) => v.viewer_id))];
+        
+        if (viewerIds.length === 0) {
+          return { views: [], count: count || 0 };
+        }
+
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url')
+          .in('id', viewerIds);
+
+        if (profilesError) {
+          console.error('Erro ao buscar perfis:', profilesError);
+        }
+
+        const profilesMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+
+        const views = data.map((view: any) => ({
+          id: view.id,
+          viewer_id: view.viewer_id,
+          viewed_at: view.viewed_at,
+          profile: profilesMap.get(view.viewer_id) || {
+            id: view.viewer_id,
+            name: '',
+            username: '',
+            avatar_url: null,
+          },
+        })) as StoryView[];
+
+        return {
+          views,
+          count: count || views.length,
+        };
+      } catch (err) {
+        console.error('Erro inesperado ao buscar visualizações:', err);
         return { views: [], count: 0 };
       }
-
-      // Buscar perfis separadamente se necessário
-      const viewerIds = [...new Set((data || []).map((v: any) => v.viewer_id))];
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, name, username, avatar_url')
-        .in('id', viewerIds);
-
-      const profilesMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
-
-      const views = (data || []).map((view: any) => ({
-        id: view.id,
-        viewer_id: view.viewer_id,
-        viewed_at: view.viewed_at,
-        profile: profilesMap.get(view.viewer_id) || {
-          id: view.viewer_id,
-          name: '',
-          username: '',
-          avatar_url: null,
-        },
-      })) as StoryView[];
-
-      return {
-        views,
-        count: views.length,
-      };
     },
     enabled: !!storyId,
+    retry: false,
   });
 }

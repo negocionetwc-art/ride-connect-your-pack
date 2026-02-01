@@ -64,7 +64,6 @@ export function StoryViewer({
   const { mutate: markAsViewed } = useStoryView();
   const { preloadUserStories } = useStoryPreloader(userStories);
   const deleteStoryMutation = useDeleteStory();
-  const { data: storyViews } = useStoryViews(currentStory?.id);
 
   // Obter ID do usuário atual
   useEffect(() => {
@@ -87,6 +86,10 @@ export function StoryViewer({
   const currentUser = useMemo(() => userStories[currentUserIndex], [userStories, currentUserIndex]);
   const currentStories = useMemo(() => currentUser?.stories || [], [currentUser]);
   const currentStory = useMemo(() => currentStories[currentStoryIndex], [currentStories, currentStoryIndex]);
+  
+  // Usar useMemo para evitar recriação desnecessária - DEPOIS de currentStory ser definido
+  const currentStoryId = useMemo(() => currentStory?.id, [currentStory?.id]);
+  const { data: storyViews } = useStoryViews(currentStoryId);
 
   // 1) PRÉ-CARREGAMENTO REAL: só libera a URL para render após load (Image.onload / video.onloadeddata)
   const mediaGate = useStoryMediaGate({
