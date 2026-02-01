@@ -398,11 +398,11 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
           }}
           style={{
             position: 'fixed',
-            left: buttonPosition.x || 16,
-            bottom: showNearbyRiders ? 'auto' : '8rem',
-            top: showNearbyRiders ? (buttonPosition.y || window.innerHeight - 200) : 'auto',
+            left: buttonPosition ? `${buttonPosition.x}px` : '16px',
+            bottom: showNearbyRiders ? 'auto' : (buttonPosition ? 'auto' : '8rem'),
+            top: showNearbyRiders ? (buttonPosition ? `${buttonPosition.y}px` : `${window.innerHeight - 200}px`) : (buttonPosition ? `${buttonPosition.y}px` : 'auto'),
             zIndex: showNearbyRiders ? 1001 : 1000,
-            transform: showNearbyRiders ? 'translate(-50%, -100%)' : 'none',
+            transform: showNearbyRiders && buttonPosition ? 'translate(-50%, -100%)' : 'none',
           }}
           className="cursor-move"
         >
