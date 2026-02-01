@@ -6,6 +6,7 @@ import { LiveMap } from '@/components/LiveMap';
 import { Groups } from '@/components/Groups';
 import { Profile } from '@/components/Profile';
 import { CreatePost } from '@/components/CreatePost';
+import { RideTracker } from '@/components/RideTracker';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('feed');
@@ -25,6 +26,8 @@ const Index = () => {
         return <Feed />;
       case 'map':
         return <LiveMap />;
+      case 'ride':
+        return <RideTracker />;
       case 'groups':
         return <Groups />;
       case 'profile':

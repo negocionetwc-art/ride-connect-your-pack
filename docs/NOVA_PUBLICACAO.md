@@ -76,7 +76,7 @@ Após executar o script, você verá uma verificação automática mostrando:
 - Legenda (texto)
 
 ❌ **Validações:**
-- Imagem deve ser menor que 5MB
+- Imagem deve ser menor que 10MB
 - Imagem deve ser do tipo: JPG, PNG, GIF, WEBP
 - Legenda deve ter no máximo 2000 caracteres
 
@@ -112,8 +112,8 @@ Execute os seguintes testes para validar a implementação:
    - ❌ Deve mostrar erro: "Adicione pelo menos uma imagem ou legenda"
 
 5. **Validação: imagem muito grande**
-   - Tente fazer upload de imagem > 5MB
-   - ❌ Deve mostrar erro: "A imagem deve ter no máximo 5MB"
+   - Tente fazer upload de imagem > 10MB
+   - ❌ Deve mostrar erro: "A imagem deve ter no máximo 10MB"
 
 6. **Validação: formato inválido**
    - Tente fazer upload de arquivo não-imagem (ex: PDF)
@@ -223,7 +223,7 @@ CREATE TABLE posts (
 - **Tipo:** Público
 - **Pasta por usuário:** `{user_id}/timestamp.ext`
 - **Formatos aceitos:** JPG, PNG, GIF, WEBP
-- **Tamanho máximo:** 5MB por imagem
+- **Tamanho máximo:** 10MB por imagem
 
 ## 🎯 Funcionalidades Implementadas
 

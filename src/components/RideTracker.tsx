@@ -16,6 +16,7 @@ interface RideTrackerProps {
 export const RideTracker = ({ onComplete }: RideTrackerProps) => {
   const [showComplete, setShowComplete] = useState(false);
   const {
+    currentRide,
     isTracking,
     currentDistance,
     elapsedTime,

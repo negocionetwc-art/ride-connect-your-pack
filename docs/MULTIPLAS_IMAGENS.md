@@ -227,7 +227,7 @@ Grid 3x4 no preview:
 
 ✅ **Arquivo:**
 - Deve ser imagem (image/*)
-- Máximo 5MB por imagem
+- Máximo 10MB por imagem
 - Formatos: JPG, PNG, GIF, WEBP
 
 ✅ **Quantidade:**
@@ -236,7 +236,7 @@ Grid 3x4 no preview:
 
 ✅ **Mensagens de Erro:**
 - "Limite excedido: máximo 10 imagens"
-- "Arquivo muito grande: máximo 5MB"
+- "Arquivo muito grande: máximo 10MB"
 - "Formato inválido: use JPG, PNG, GIF ou WEBP"
 
 ## 📱 Compatibilidade

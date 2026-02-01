@@ -47,7 +47,7 @@ supabase/migrations/20260201030000_multiple_post_images.sql
 ## 📋 Funcionalidades
 
 ✅ Upload paralelo otimizado
-✅ Validação automática (5MB/imagem)
+✅ Validação automática (10MB/imagem)
 ✅ Qualidade máxima preservada
 ✅ Grid responsivo (1, 2 ou 3 colunas)
 ✅ Carousel com animações
@@ -70,7 +70,7 @@ Para mais detalhes, veja:
 
 ```typescript
 MAX_IMAGES: 10        // Máximo de imagens
-MAX_IMAGE_SIZE: 5MB   // Tamanho por imagem
+MAX_IMAGE_SIZE: 10MB  // Tamanho por imagem
 ```
 
 Personalize em `src/hooks/useCreatePost.ts`
@@ -86,7 +86,7 @@ Personalize em `src/hooks/useCreatePost.ts`
    - Confirme políticas RLS
 
 3. **Erro ao fazer upload?**
-   - Verifique tamanho (máx 5MB)
+   - Verifique tamanho (máx 10MB)
    - Confirme formato (JPG, PNG, GIF, WEBP)
 
 ---

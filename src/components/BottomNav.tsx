@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Home, Map, Users, User, PlusCircle } from 'lucide-react';
+import { Home, Map, Users, User, PlusCircle, Route } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: string;
@@ -9,6 +9,7 @@ interface BottomNavProps {
 const tabs = [
   { id: 'feed', icon: Home, label: 'Feed' },
   { id: 'map', icon: Map, label: 'Mapa' },
+  { id: 'ride', icon: Route, label: 'Rolê' },
   { id: 'create', icon: PlusCircle, label: 'Criar' },
   { id: 'groups', icon: Users, label: 'Grupos' },
   { id: 'profile', icon: User, label: 'Perfil' },

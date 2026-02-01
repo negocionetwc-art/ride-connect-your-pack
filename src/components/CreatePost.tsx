@@ -16,7 +16,7 @@ const postTypes = [
 ];
 
 const MAX_CAPTION_LENGTH = 2000;
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGES = 10; // Máximo de imagens por post
 
 export const CreatePost = ({ onClose }: CreatePostProps) => {
@@ -63,7 +63,7 @@ export const CreatePost = ({ onClose }: CreatePostProps) => {
       if (file.size > MAX_IMAGE_SIZE) {
         toast({
           title: 'Erro',
-          description: `${file.name} excede o tamanho máximo de 5MB`,
+          description: `${file.name} excede o tamanho máximo de 10MB`,
           variant: 'destructive',
         });
         continue;

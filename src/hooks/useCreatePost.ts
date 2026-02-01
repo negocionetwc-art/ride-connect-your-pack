@@ -11,6 +11,7 @@ export interface CreatePostData {
 }
 
 const MAX_IMAGES = 10; // Máximo de imagens por post
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB por imagem
 
 export function useCreatePost() {
   const queryClient = useQueryClient();
@@ -34,6 +35,15 @@ export function useCreatePost() {
 
       if (data.images && data.images.length > MAX_IMAGES) {
         throw new Error(`Você pode adicionar no máximo ${MAX_IMAGES} imagens por post.`);
+      }
+
+      // Validar tamanho de cada imagem
+      if (data.images) {
+        for (const image of data.images) {
+          if (image.size > MAX_IMAGE_SIZE) {
+            throw new Error(`A imagem ${image.name} excede o tamanho máximo de 10MB.`);
+          }
+        }
       }
 
       const imageUrls: string[] = [];
