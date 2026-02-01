@@ -140,23 +140,9 @@ export const LiveMap = () => {
     }
   }, [currentLocation]);
 
-  // Carregar grupos com localização do banco
-  useEffect(() => {
-    const loadGroups = async () => {
-      const { data, error } = await supabase
-        .from('groups')
-        .select('*')
-        .eq('is_visible_on_map', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-
-      if (!error && data) {
-        setGroupsWithLocation(data);
-      }
-    };
-
-    loadGroups();
-  }, []);
+  // Por enquanto, grupos com localização não estão implementados
+  // A tabela groups não possui colunas latitude/longitude ainda
+  // Quando a funcionalidade for implementada, adicionar as colunas e reativar este código
 
   // Carregar localizações de riders online com perfis
   useEffect(() => {
@@ -264,24 +250,8 @@ export const LiveMap = () => {
             />
           )}
 
-          {/* Marcadores de Grupos */}
-          {groupsWithLocation.map((group) => (
-            <Marker
-              key={group.id}
-              position={[group.latitude!, group.longitude!]}
-              icon={createGroupMarkerIcon()}
-              eventHandlers={{
-                click: () => setSelectedGroup(group),
-              }}
-            >
-              <Popup>
-                <div className="text-center">
-                  <h3 className="font-semibold">{group.name}</h3>
-                  <p className="text-xs text-muted-foreground">{group.category}</p>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+          {/* Marcadores de Grupos - Desabilitado até implementar colunas latitude/longitude */}
+          {/* groupsWithLocation está vazio pois a tabela groups não tem lat/lng */}
 
           {/* Marcadores de Riders Online (mock data) */}
           {onlineRiders.map((rider) => {
