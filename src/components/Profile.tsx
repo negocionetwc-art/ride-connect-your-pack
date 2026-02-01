@@ -23,7 +23,11 @@ import type { Database } from '@/integrations/supabase/types';
 
 type Post = Database['public']['Tables']['posts']['Row'];
 
-export const Profile = () => {
+interface ProfileProps {
+  userId?: string | null; // Se fornecido, mostra perfil de outro usuário
+}
+
+export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
   const [user, setUser] = useState<any>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -39,10 +43,14 @@ export const Profile = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedStat, setSelectedStat] = useState<string | null>(null);
 
-  const { data: profile, isLoading: isLoadingProfile } = useProfile();
-  const { data: stats, isLoading: isLoadingStats } = useProfileStats();
-  const { data: badges, isLoading: isLoadingBadges } = useProfileBadges();
-  const { data: posts, isLoading: isLoadingPosts } = useProfilePosts(3);
+  // Se está visualizando outro perfil, usar viewingUserId, senão usar o próprio
+  const profileUserId = viewingUserId || user?.id;
+  const isOwnProfile = !viewingUserId || viewingUserId === user?.id;
+
+  const { data: profile, isLoading: isLoadingProfile } = useProfile(profileUserId);
+  const { data: stats, isLoading: isLoadingStats } = useProfileStats(profileUserId);
+  const { data: badges, isLoading: isLoadingBadges } = useProfileBadges(profileUserId);
+  const { data: posts, isLoading: isLoadingPosts } = useProfilePosts(3, profileUserId);
 
   useEffect(() => {
     const checkUser = async () => {

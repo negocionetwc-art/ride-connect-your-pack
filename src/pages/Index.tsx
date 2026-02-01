@@ -13,9 +13,19 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('feed');
   const [showCreate, setShowCreate] = useState(false);
   const [createPostType, setCreatePostType] = useState<'photo' | 'route' | 'live' | 'group'>('photo');
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    // Resetar visualização de perfil ao mudar de tab
+    if (tab !== 'profile') {
+      setViewingUserId(null);
+    }
+  };
+
+  const handleProfileClick = (userId: string) => {
+    setViewingUserId(userId);
+    setActiveTab('profile');
   };
 
   const handleFabOptionSelect = (option: 'photo' | 'route' | 'live' | 'group') => {
@@ -28,7 +38,7 @@ const Index = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'feed':
-        return <Feed />;
+        return <Feed onProfileClick={handleProfileClick} />;
       case 'map':
         return <LiveMap />;
       case 'ride':
@@ -36,9 +46,9 @@ const Index = () => {
       case 'groups':
         return <Groups />;
       case 'profile':
-        return <Profile />;
+        return <Profile userId={viewingUserId} />;
       default:
-        return <Feed />;
+        return <Feed onProfileClick={handleProfileClick} />;
     }
   };
 

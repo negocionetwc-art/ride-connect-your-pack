@@ -5,19 +5,25 @@ import { toast } from '@/hooks/use-toast';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
-export function useProfile() {
+export function useProfile(userId?: string | null) {
   return useQuery({
-    queryKey: ['profile'],
+    queryKey: ['profile', userId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return null;
+      let targetUserId = userId;
+      
+      // Se não foi passado userId, buscar do usuário logado
+      if (!targetUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          return null;
+        }
+        targetUserId = user.id;
       }
 
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', targetUserId)
         .single();
 
       if (error) {

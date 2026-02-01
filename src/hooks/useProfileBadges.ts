@@ -15,13 +15,19 @@ export interface BadgeWithUnlocked extends Badge {
   };
 }
 
-export function useProfileBadges() {
+export function useProfileBadges(userId?: string | null) {
   return useQuery({
-    queryKey: ['profile-badges'],
+    queryKey: ['profile-badges', userId],
     queryFn: async (): Promise<BadgeWithUnlocked[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return [];
+      let targetUserId = userId;
+      
+      // Se não foi passado userId, buscar do usuário logado
+      if (!targetUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          return [];
+        }
+        targetUserId = user.id;
       }
 
       // Buscar todos os badges
@@ -36,7 +42,7 @@ export function useProfileBadges() {
       const { data: userBadges, error: userBadgesError } = await supabase
         .from('user_badges')
         .select('badge_id, unlocked_at')
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
 
       if (userBadgesError) throw userBadgesError;
 
@@ -44,7 +50,7 @@ export function useProfileBadges() {
       const { data: badgeProgress, error: progressError } = await supabase
         .from('badge_progress')
         .select('badge_id, current_value, target_value, percentage, unlocked')
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
 
       if (progressError) throw progressError;
 

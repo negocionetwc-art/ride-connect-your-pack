@@ -4,19 +4,25 @@ import type { Database } from '@/integrations/supabase/types';
 
 type Post = Database['public']['Tables']['posts']['Row'];
 
-export function useProfilePosts(limit?: number) {
+export function useProfilePosts(limit?: number, userId?: string | null) {
   return useQuery({
-    queryKey: ['profile-posts', limit],
+    queryKey: ['profile-posts', limit, userId],
     queryFn: async (): Promise<Post[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return [];
+      let targetUserId = userId;
+      
+      // Se não foi passado userId, buscar do usuário logado
+      if (!targetUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          return [];
+        }
+        targetUserId = user.id;
       }
 
       let query = supabase
         .from('posts')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .order('created_at', { ascending: false });
 
       if (limit) {

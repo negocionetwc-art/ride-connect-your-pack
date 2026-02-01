@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Bookmark, MapPin, Clock, Navigation } from 'lucide-react';
 import { Post } from '@/data/mockData';
@@ -12,13 +12,28 @@ import { useLikePost } from '@/hooks/useLikePost';
 import { PostLikersDialog } from '@/components/post/PostLikersDialog';
 import { PostCommentsDialog } from '@/components/post/PostCommentsDialog';
 import { SharePostDialog } from '@/components/post/SharePostDialog';
+import { PostOptionsMenu } from '@/components/post/PostOptionsMenu';
+import { EditPostDialog } from '@/components/post/EditPostDialog';
+import { useDeletePost } from '@/hooks/useDeletePost';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PostCardProps {
   post: Post | PostWithProfile;
   index: number;
+  onProfileClick?: (userId: string) => void;
 }
 
-export const PostCard = ({ post, index }: PostCardProps) => {
+export const PostCard = ({ post, index, onProfileClick }: PostCardProps) => {
   // Detectar se é post do banco ou mock
   const isDbPost = 'profile' in post;
   
@@ -27,11 +42,27 @@ export const PostCard = ({ post, index }: PostCardProps) => {
   const [showCommentsDialog, setShowCommentsDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showMediaDetail, setShowMediaDetail] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isAuthor, setIsAuthor] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Hooks para curtidas (apenas para posts do banco)
   const postId = isDbPost ? (post as PostWithProfile).id : '';
   const { data: likesData } = usePostLikes(postId);
   const { mutate: toggleLike } = useLikePost();
+  const { mutate: deletePost, isPending: isDeleting } = useDeletePost();
+  
+  // Verificar se é o autor do post
+  useEffect(() => {
+    if (isDbPost) {
+      supabase.auth.getUser().then(({ data }) => {
+        const userId = data.user?.id;
+        setCurrentUserId(userId || null);
+        setIsAuthor(userId === (post as PostWithProfile).user_id);
+      });
+    }
+  }, [isDbPost, post]);
   
   // Estado local de curtidas (para posts mock ou fallback)
   const [localIsLiked, setLocalIsLiked] = useState('isLiked' in post ? post.isLiked || false : false);
@@ -70,6 +101,26 @@ export const PostCard = ({ post, index }: PostCardProps) => {
     }
   };
 
+  const handleEdit = () => {
+    setShowEditDialog(true);
+  };
+
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (isDbPost) {
+      deletePost({ postId });
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (isDbPost && onProfileClick) {
+      onProfileClick((post as PostWithProfile).user_id);
+    }
+  };
+
   // Extrair dados do usuário
   const userData = isDbPost 
     ? {
@@ -77,6 +128,7 @@ export const PostCard = ({ post, index }: PostCardProps) => {
         username: (post as PostWithProfile).profile.username,
         avatar: (post as PostWithProfile).profile.avatar_url || '/placeholder.svg',
         level: 1, // Pode ser adicionado ao profile depois
+        userId: (post as PostWithProfile).user_id,
       }
     : (post as Post).user;
 
@@ -120,24 +172,43 @@ export const PostCard = ({ post, index }: PostCardProps) => {
           {/* Header Overlay - Informações do usuário sobre a imagem */}
           <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 via-black/30 to-transparent p-3 z-10">
             <div className="flex items-center gap-3">
-              <img
-                src={userData.avatar}
-                alt={userData.name}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-white/30"
-              />
-              <div className="flex-1">
+              <button 
+                onClick={handleProfileClick}
+                className="shrink-0 hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src={userData.avatar}
+                  alt={userData.name}
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-white/30"
+                />
+              </button>
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-white">{userData.name}</span>
-                  <span className="text-xs text-primary">Lvl {userData.level}</span>
+                  <button 
+                    onClick={handleProfileClick}
+                    className="font-semibold text-sm text-white hover:opacity-80 transition-opacity truncate"
+                  >
+                    {userData.name}
+                  </button>
+                  <span className="text-xs text-primary shrink-0">Lvl {userData.level}</span>
                 </div>
                 {postData.location && (
                   <div className="flex items-center gap-1 text-xs text-white/90">
-                    <MapPin className="w-3 h-3" />
-                    {postData.location}
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{postData.location}</span>
                   </div>
                 )}
               </div>
-              <span className="text-xs text-white/80">{postData.timestamp}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-white/80">{postData.timestamp}</span>
+                {isDbPost && (
+                  <PostOptionsMenu
+                    isAuthor={isAuthor}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                )}
+              </div>
             </div>
           </div>
           
@@ -260,6 +331,14 @@ export const PostCard = ({ post, index }: PostCardProps) => {
             onClose={() => setShowShareDialog(false)}
             postCaption={postData.caption || ''}
           />
+
+          {/* Dialog de edição */}
+          <EditPostDialog
+            postId={postId}
+            currentCaption={postData.caption || ''}
+            isOpen={showEditDialog}
+            onClose={() => setShowEditDialog(false)}
+          />
         </>
       )}
 
@@ -273,6 +352,28 @@ export const PostCard = ({ post, index }: PostCardProps) => {
           />
         </AnimatePresence>
       )}
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir publicação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Seu post será permanentemente excluído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.article>
   );
 };

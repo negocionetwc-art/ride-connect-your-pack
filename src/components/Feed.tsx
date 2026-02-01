@@ -5,7 +5,11 @@ import { motion } from 'framer-motion';
 import { useFeedPosts } from '@/hooks/useFeedPosts';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export const Feed = () => {
+interface FeedProps {
+  onProfileClick?: (userId: string) => void;
+}
+
+export const Feed = ({ onProfileClick }: FeedProps) => {
   const { data: posts, isLoading, isError } = useFeedPosts();
 
   return (
@@ -77,7 +81,12 @@ export const Feed = () => {
         {!isLoading && !isError && posts && posts.length > 0 && (
           <>
             {posts.map((post, index) => (
-              <PostCard key={post.id} post={post} index={index} />
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                index={index}
+                onProfileClick={onProfileClick}
+              />
             ))}
           </>
         )}

@@ -8,33 +8,39 @@ export interface ProfileStats {
   badgesCount: number;
 }
 
-export function useProfileStats() {
+export function useProfileStats(userId?: string | null) {
   return useQuery({
-    queryKey: ['profile-stats'],
+    queryKey: ['profile-stats', userId],
     queryFn: async (): Promise<ProfileStats> => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return { totalKm: 0, ridesCount: 0, totalHours: 0, badgesCount: 0 };
+      let targetUserId = userId;
+      
+      // Se não foi passado userId, buscar do usuário logado
+      if (!targetUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          return { totalKm: 0, ridesCount: 0, totalHours: 0, badgesCount: 0 };
+        }
+        targetUserId = user.id;
       }
 
       // Buscar perfil para total_km
       const { data: profile } = await supabase
         .from('profiles')
         .select('total_km')
-        .eq('id', user.id)
+        .eq('id', targetUserId)
         .single();
 
       // Contar posts (rolês)
       const { count: ridesCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
 
       // Somar duration_minutes de todos os posts
       const { data: posts } = await supabase
         .from('posts')
         .select('duration_minutes')
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
 
       const totalMinutes = posts?.reduce((sum, post) => sum + (post.duration_minutes || 0), 0) || 0;
       const totalHours = Math.round(totalMinutes / 60);
@@ -43,7 +49,7 @@ export function useProfileStats() {
       const { count: badgesCount } = await supabase
         .from('user_badges')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', targetUserId);
 
       return {
         totalKm: profile?.total_km || 0,
