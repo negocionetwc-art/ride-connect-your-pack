@@ -11,6 +11,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { createGroupMarkerIcon, createRiderMarkerIcon, createOwnLocationMarkerIcon } from './MapMarker';
 import { LocationDetailSheet } from './LocationDetailSheet';
 import { useLocationSharing } from '@/hooks/useLocationSharing';
+import { useLiveLocationTracking } from '@/hooks/useLiveLocationTracking';
 import { Switch } from '@/components/ui/switch';
 import { useQuery } from '@tanstack/react-query';
 import { useFollow } from '@/hooks/useFollow';
@@ -50,6 +51,58 @@ function MapCenter({ center }: { center: LatLngExpression }) {
   return null;
 }
 
+// Componente para renderizar marcadores de riders
+function RidersMarkers({
+  riders,
+  currentUserId,
+  onRiderSelect,
+}: {
+  riders: Array<{
+    user_id: string;
+    latitude: number | string;
+    longitude: number | string;
+    speed_kmh?: number | string | null;
+    profile?: any;
+  }>;
+  currentUserId?: string;
+  onRiderSelect: (rider: RiderInfo) => void;
+}) {
+  return (
+    <>
+      {riders
+        .filter((locationData) => locationData.user_id !== currentUserId)
+        .map((locationData) => (
+          <RiderMarker
+            key={locationData.user_id}
+            location={{
+              latitude: Number(locationData.latitude),
+              longitude: Number(locationData.longitude),
+            }}
+            profile={locationData.profile}
+            speed={locationData.speed_kmh ? Number(locationData.speed_kmh) : undefined}
+            onSelect={() => {
+              if (locationData.profile) {
+                onRiderSelect({
+                  id: locationData.user_id,
+                  name: locationData.profile.name,
+                  avatar: locationData.profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+                  bike: locationData.profile.bike || undefined,
+                  speed: locationData.speed_kmh ? Math.round(Number(locationData.speed_kmh)) : undefined,
+                  level: locationData.profile.level,
+                  totalKm: locationData.profile.total_km,
+                  location: {
+                    lat: Number(locationData.latitude),
+                    lng: Number(locationData.longitude),
+                  },
+                });
+              }
+            }}
+          />
+        ))}
+    </>
+  );
+}
+
 // Componente para o marcador do próprio usuário que atualiza em tempo real
 function OwnLocationMarker({ 
   location, 
@@ -61,10 +114,32 @@ function OwnLocationMarker({
   speed?: number;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
+  const previousPositionRef = useRef<[number, number] | null>(null);
   
   useEffect(() => {
     if (markerRef.current) {
-      markerRef.current.setLatLng([location.latitude, location.longitude]);
+      const newPosition: [number, number] = [location.latitude, location.longitude];
+      
+      // Se temos uma posição anterior, fazer movimento suave
+      if (previousPositionRef.current) {
+        const [prevLat, prevLng] = previousPositionRef.current;
+        const latDiff = Math.abs(newPosition[0] - prevLat);
+        const lngDiff = Math.abs(newPosition[1] - prevLng);
+        
+        // Se a mudança for pequena, fazer interpolação suave
+        if (latDiff < 0.001 && lngDiff < 0.001) {
+          // Usar setLatLng que já tem animação suave no Leaflet
+          markerRef.current.setLatLng(newPosition);
+        } else {
+          // Mudança grande, atualizar diretamente
+          markerRef.current.setLatLng(newPosition);
+        }
+      } else {
+        // Primeira posição, definir diretamente
+        markerRef.current.setLatLng(newPosition);
+      }
+      
+      previousPositionRef.current = newPosition;
     }
   }, [location.latitude, location.longitude]);
 
@@ -89,6 +164,78 @@ function OwnLocationMarker({
   );
 }
 
+// Componente para marcador de rider com movimento suave
+function RiderMarker({ 
+  location, 
+  profile,
+  onSelect,
+  speed
+}: { 
+  location: { latitude: number; longitude: number }; 
+  profile?: any;
+  onSelect: () => void;
+  speed?: number;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+  const previousPositionRef = useRef<[number, number] | null>(null);
+  
+  useEffect(() => {
+    if (markerRef.current) {
+      const newPosition: [number, number] = [location.latitude, location.longitude];
+      
+      // Se temos uma posição anterior, fazer movimento suave
+      if (previousPositionRef.current) {
+        const [prevLat, prevLng] = previousPositionRef.current;
+        const latDiff = Math.abs(newPosition[0] - prevLat);
+        const lngDiff = Math.abs(newPosition[1] - prevLng);
+        
+        // Se a mudança for pequena, fazer interpolação suave
+        if (latDiff < 0.001 && lngDiff < 0.001) {
+          // Usar setLatLng que já tem animação suave no Leaflet
+          markerRef.current.setLatLng(newPosition);
+        } else {
+          // Mudança grande, atualizar diretamente
+          markerRef.current.setLatLng(newPosition);
+        }
+      } else {
+        // Primeira posição, definir diretamente
+        markerRef.current.setLatLng(newPosition);
+      }
+      
+      previousPositionRef.current = newPosition;
+    }
+  }, [location.latitude, location.longitude]);
+
+  const avatarUrl = profile?.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop';
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[location.latitude, location.longitude]}
+      icon={createRiderMarkerIcon(avatarUrl, speed)}
+      eventHandlers={{
+        click: onSelect,
+      }}
+    >
+      <Popup>
+        <div className="text-center">
+          {avatarUrl && (
+            <img
+              src={avatarUrl}
+              alt={profile?.name || 'Rider'}
+              className="w-12 h-12 rounded-full mx-auto mb-2"
+            />
+          )}
+          <h3 className="font-semibold">{profile?.name || 'Rider Online'}</h3>
+          {speed !== undefined && (
+            <p className="text-xs text-primary">{Math.round(speed)} km/h</p>
+          )}
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
 
 interface LiveMapProps {
   onRiderSelectChange?: (isOpen: boolean) => void;
@@ -106,8 +253,6 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
-  const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
-  const [onlineRidersProfiles, setOnlineRidersProfiles] = useState<Map<string, Profile>>(new Map());
 
   // Hook de compartilhamento de localização
   const {
@@ -118,6 +263,9 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
     toggleSharing,
   } = useLocationSharing();
 
+  // Hook de subscrição em tempo real de localizações
+  const { onlineRiders } = useLiveLocationTracking();
+
   // Buscar perfil do usuário atual para avatar
   const { data: currentUserProfile } = useQuery({
     queryKey: ['current-user-profile'],
@@ -127,7 +275,7 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
 
       const { data } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('id, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -187,42 +335,7 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
   // A tabela groups não possui colunas latitude/longitude ainda
   // Quando a funcionalidade for implementada, adicionar as colunas e reativar este código
 
-  // Carregar localizações de riders online com perfis
-  useEffect(() => {
-    const loadOnlineLocations = async () => {
-      const { data: locationsData, error } = await supabase
-        .from('user_locations')
-        .select('*')
-        .eq('is_online', true);
-
-      if (!error && locationsData) {
-        setOnlineLocations(locationsData);
-        
-        // Buscar perfis dos riders online
-        const userIds = locationsData.map(loc => loc.user_id);
-        if (userIds.length > 0) {
-          const { data: profilesData } = await supabase
-            .from('profiles')
-            .select('*')
-            .in('id', userIds);
-
-          if (profilesData) {
-            const profilesMap = new Map();
-            profilesData.forEach(profile => {
-              profilesMap.set(profile.id, profile);
-            });
-            setOnlineRidersProfiles(profilesMap);
-          }
-        }
-      }
-    };
-
-    loadOnlineLocations();
-
-    // Atualizar a cada 10 segundos
-    const interval = setInterval(loadOnlineLocations, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  // Removido: polling substituído por subscrição realtime via useLiveLocationTracking
 
   return (
     <div className="fixed inset-0 flex flex-col" style={{ height: '100vh' }}>
@@ -265,8 +378,8 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
             {/* Contador de online */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
-              <span className="hidden sm:inline">{onlineRiders.length + onlineLocations.length + (isSharing ? 1 : 0)} online</span>
-              <span className="sm:hidden">{onlineRiders.length + onlineLocations.length + (isSharing ? 1 : 0)}</span>
+              <span className="hidden sm:inline">{onlineRiders.length + (isSharing ? 1 : 0)} online</span>
+              <span className="sm:hidden">{onlineRiders.length + (isSharing ? 1 : 0)}</span>
             </div>
           </div>
         </div>
@@ -338,57 +451,12 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
             );
           })}
 
-          {/* Marcadores de Riders Online (banco de dados) */}
-          {onlineLocations.map((location) => {
-            const profile = onlineRidersProfiles.get(location.user_id);
-            const avatarUrl = profile?.avatar_url || undefined;
-            
-            return (
-              <Marker
-                key={location.id}
-                position={[location.latitude, location.longitude]}
-                icon={createRiderMarkerIcon(
-                  avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-                  location.speed_kmh || undefined
-                )}
-                eventHandlers={{
-                  click: () => {
-                    if (profile) {
-                      setSelectedRider({
-                        id: location.user_id,
-                        name: profile.name,
-                        avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-                        bike: profile.bike || undefined,
-                        speed: location.speed_kmh ? Math.round(location.speed_kmh) : undefined,
-                        level: profile.level,
-                        totalKm: profile.total_km,
-                        location: {
-                          lat: location.latitude,
-                          lng: location.longitude,
-                        },
-                      });
-                    }
-                  },
-                }}
-              >
-                <Popup>
-                  <div className="text-center">
-                    {avatarUrl && (
-                      <img
-                        src={avatarUrl}
-                        alt={profile?.name || 'Rider'}
-                        className="w-12 h-12 rounded-full mx-auto mb-2"
-                      />
-                    )}
-                    <h3 className="font-semibold">{profile?.name || 'Rider Online'}</h3>
-                    {location.speed_kmh && (
-                      <p className="text-xs text-primary">{Math.round(location.speed_kmh)} km/h</p>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+          {/* Marcadores de Riders Online (tempo real via Realtime) */}
+          <RidersMarkers 
+            riders={onlineRiders}
+            currentUserId={currentUserProfile?.id}
+            onRiderSelect={setSelectedRider}
+          />
         </MapContainer>
       </div>
 
