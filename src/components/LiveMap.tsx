@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X, MapPin, Loader2 } from 'lucide-react';
+import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X, MapPin, Loader2, UserPlus, UserCheck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon, LatLngExpression } from 'leaflet';
 import type * as L from 'leaflet';
@@ -13,6 +13,8 @@ import { LocationDetailSheet } from './LocationDetailSheet';
 import { useLocationSharing } from '@/hooks/useLocationSharing';
 import { Switch } from '@/components/ui/switch';
 import { useQuery } from '@tanstack/react-query';
+import { useFollow } from '@/hooks/useFollow';
+import { useFollowStatus } from '@/hooks/useFollowStatus';
 
 type Group = Database['public']['Tables']['groups']['Row'];
 type UserLocation = Database['public']['Tables']['user_locations']['Row'];
@@ -122,6 +124,31 @@ export const LiveMap = () => {
       return data;
     },
   });
+
+  // Hook para seguir/deseguir
+  const followMutation = useFollow();
+  const { data: followStatus } = useFollowStatus(selectedRider?.id);
+  
+  // Verificar se o rider selecionado é o próprio usuário
+  const [isOwnRider, setIsOwnRider] = useState(false);
+  
+  useEffect(() => {
+    const checkOwnRider = async () => {
+      if (!selectedRider) {
+        setIsOwnRider(false);
+        return;
+      }
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && selectedRider.id === user.id) {
+        setIsOwnRider(true);
+      } else {
+        setIsOwnRider(false);
+      }
+    };
+    
+    checkOwnRider();
+  }, [selectedRider]);
 
   // Atualizar localização do mapa quando o usuário compartilhar
   useEffect(() => {
@@ -451,9 +478,42 @@ export const LiveMap = () => {
               </div>
 
               <div className="flex gap-3">
-                <button className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold">
-                  Seguir no Mapa
-                </button>
+                {!isOwnRider && selectedRider.id && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      if (selectedRider.id) {
+                        followMutation.mutate({
+                          userId: selectedRider.id,
+                          isFollowing: followStatus?.isFollowing ?? false,
+                        });
+                      }
+                    }}
+                    disabled={followMutation.isPending}
+                    className={`flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors ${
+                      followStatus?.isFollowing
+                        ? 'bg-secondary text-foreground hover:bg-secondary/80'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    }`}
+                  >
+                    {followMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        <span>Processando...</span>
+                      </>
+                    ) : followStatus?.isFollowing ? (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        <span>Seguindo</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        <span>Seguir no Mapa</span>
+                      </>
+                    )}
+                  </motion.button>
+                )}
                 <button className="flex-1 py-3 bg-secondary rounded-xl font-semibold">
                   Mensagem
                 </button>

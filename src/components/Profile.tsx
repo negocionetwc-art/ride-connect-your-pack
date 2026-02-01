@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Edit2, Award, Route, Clock, Flame, Camera } from 'lucide-react';
+import { Settings, Edit2, Award, Route, Clock, Flame, Camera, UserPlus, UserCheck, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useProfilePosts } from '@/hooks/useProfilePosts';
+import { useFollow } from '@/hooks/useFollow';
+import { useFollowStatus } from '@/hooks/useFollowStatus';
 import { AuthPanel } from './profile/AuthPanel';
 import { SettingsSheet } from './profile/SettingsSheet';
 import { EditProfileDialog } from './profile/EditProfileDialog';
@@ -51,6 +53,9 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
   const { data: stats, isLoading: isLoadingStats } = useProfileStats(profileUserId);
   const { data: badges, isLoading: isLoadingBadges } = useProfileBadges(profileUserId);
   const { data: posts, isLoading: isLoadingPosts } = useProfilePosts(3, profileUserId);
+  // Sempre buscar status de follow (para contadores mesmo no próprio perfil)
+  const { data: followStatus } = useFollowStatus(profileUserId);
+  const followMutation = useFollow();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -139,6 +144,26 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
     },
   ];
 
+  // Adicionar estatísticas de seguidores/seguindo quando visualizando outro perfil ou próprio
+  const followStatsData = [
+    {
+      label: 'Seguidores',
+      value: followStatus?.followersCount?.toString() || '0',
+      icon: Users,
+      onClick: () => {
+        // TODO: Abrir modal com lista de seguidores
+      },
+    },
+    {
+      label: 'Seguindo',
+      value: followStatus?.followingCount?.toString() || '0',
+      icon: UserPlus,
+      onClick: () => {
+        // TODO: Abrir modal com lista de seguindo
+      },
+    },
+  ];
+
   const displayedBadges = badges?.slice(0, 8) || [];
 
   return (
@@ -171,14 +196,16 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
               <div className="w-full h-full bg-gradient-to-br from-primary/40 via-orange-600/30 to-background" />
             )}
             
-            {/* Botão para trocar capa */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowCoverImageUpload(true)}
-              className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
-            >
-              <Camera className="w-4 h-4 text-white" />
-            </motion.button>
+            {/* Botão para trocar capa - apenas no próprio perfil */}
+            {isOwnProfile && (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowCoverImageUpload(true)}
+                className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+              >
+                <Camera className="w-4 h-4 text-white" />
+              </motion.button>
+            )}
           </div>
 
           {/* Avatar & Info */}
@@ -193,30 +220,70 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
                   alt={profile?.name || 'Usuário'}
                   className="w-28 h-28 rounded-full border-4 border-background object-cover"
                 />
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setShowAvatarUpload(true)}
-                  className="absolute bottom-1 right-1 p-2 bg-primary rounded-full"
-                >
-                  <Edit2 className="w-4 h-4 text-primary-foreground" />
-                </motion.button>
+                {isOwnProfile && (
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowAvatarUpload(true)}
+                    className="absolute bottom-1 right-1 p-2 bg-primary rounded-full"
+                  >
+                    <Edit2 className="w-4 h-4 text-primary-foreground" />
+                  </motion.button>
+                )}
               </div>
 
-              <div
-                className="flex-1 pb-3 cursor-pointer"
-                onClick={() => setShowEditProfile(true)}
-              >
-                <h2 className="text-xl font-bold">{profile?.name || 'Usuário'}</h2>
-                <p className="text-sm text-muted-foreground">
-                  @{profile?.username || 'username'}
-                </p>
+              <div className="flex-1 pb-3">
+                <div
+                  className={isOwnProfile ? "cursor-pointer" : ""}
+                  onClick={isOwnProfile ? () => setShowEditProfile(true) : undefined}
+                >
+                  <h2 className="text-xl font-bold">{profile?.name || 'Usuário'}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    @{profile?.username || 'username'}
+                  </p>
+                </div>
+                
+                {/* Botão de seguir quando visualizando outro perfil */}
+                {!isOwnProfile && profileUserId && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      followMutation.mutate({
+                        userId: profileUserId,
+                        isFollowing: followStatus?.isFollowing ?? false,
+                      });
+                    }}
+                    disabled={followMutation.isPending}
+                    className={`mt-3 px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors ${
+                      followStatus?.isFollowing
+                        ? 'bg-secondary text-foreground hover:bg-secondary/80'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    }`}
+                  >
+                    {followMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        <span>Processando...</span>
+                      </>
+                    ) : followStatus?.isFollowing ? (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        <span>Seguindo</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        <span>Seguir</span>
+                      </>
+                    )}
+                  </motion.button>
+                )}
               </div>
             </div>
 
             {/* Bike Info */}
             {profile?.bike && (
               <motion.div
-                whileTap={{ scale: 0.98 }}
+                whileTap={isOwnProfile ? { scale: 0.98 } : undefined}
                 className="mt-4 p-4 bg-card rounded-xl border border-border/50"
               >
                 <div className="flex items-center gap-3">
@@ -225,24 +292,24 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
                     <img
                       src={profile.bike_image_url}
                       alt={profile.bike}
-                      className="w-16 h-16 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => setShowBikeImageViewer(true)}
+                      className={`w-16 h-16 rounded-lg object-cover ${isOwnProfile ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                      onClick={isOwnProfile ? () => setShowBikeImageViewer(true) : undefined}
                     />
                   ) : (
                     <div 
-                      className="text-3xl cursor-pointer hover:scale-110 transition-transform"
-                      onClick={() => setShowEditProfile(true)}
+                      className={`text-3xl ${isOwnProfile ? 'cursor-pointer hover:scale-110 transition-transform' : ''}`}
+                      onClick={isOwnProfile ? () => setShowEditProfile(true) : undefined}
                     >
                       🏍️
                     </div>
                   )}
                   <div 
-                    className="flex-1 cursor-pointer"
-                    onClick={() => setShowEditProfile(true)}
+                    className={`flex-1 ${isOwnProfile ? 'cursor-pointer' : ''}`}
+                    onClick={isOwnProfile ? () => setShowEditProfile(true) : undefined}
                   >
                     <p className="font-semibold">{profile.bike}</p>
                     <p className="text-sm text-muted-foreground">
-                      Minha companheira
+                      {isOwnProfile ? 'Minha companheira' : 'Moto'}
                     </p>
                   </div>
                 </div>
@@ -251,9 +318,9 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
 
             {/* Level Progress */}
             <motion.div
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowLevelDetail(true)}
-              className="mt-4 p-4 bg-card rounded-xl border border-border/50 cursor-pointer"
+              whileTap={isOwnProfile ? { scale: 0.98 } : undefined}
+              onClick={isOwnProfile ? () => setShowLevelDetail(true) : undefined}
+              className={`mt-4 p-4 bg-card rounded-xl border border-border/50 ${isOwnProfile ? 'cursor-pointer' : ''}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">
@@ -277,7 +344,7 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
 
         {/* Stats Grid */}
         <div className="px-4 mb-6">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-6 gap-3">
             {statsData.map((stat, index) => {
               const Icon = stat.icon;
               return (
@@ -286,6 +353,25 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={stat.onClick}
+                  className="bg-card rounded-xl p-3 text-center border border-border/50 hover:border-primary/50 transition-colors"
+                >
+                  <Icon className="w-5 h-5 mx-auto text-primary mb-1" />
+                  <p className="text-lg font-bold">{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                </motion.button>
+              );
+            })}
+            {/* Sempre mostrar estatísticas de follow */}
+            {followStatsData.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <motion.button
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: (statsData.length + index) * 0.1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={stat.onClick}
                   className="bg-card rounded-xl p-3 text-center border border-border/50 hover:border-primary/50 transition-colors"
