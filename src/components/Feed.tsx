@@ -12,9 +12,10 @@ import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 interface FeedProps {
   onProfileClick?: (userId: string) => void;
   onMessagesClick?: () => void;
+  onStoryOverlayChange?: (isOpen: boolean) => void;
 }
 
-export const Feed = ({ onProfileClick, onMessagesClick }: FeedProps) => {
+export const Feed = ({ onProfileClick, onMessagesClick, onStoryOverlayChange }: FeedProps) => {
   const { data: posts, isLoading, isError } = useFeedPosts();
   const [showNotifications, setShowNotifications] = useState(false);
   
@@ -51,7 +52,7 @@ export const Feed = ({ onProfileClick, onMessagesClick }: FeedProps) => {
       </header>
 
       {/* Stories */}
-      <Stories />
+      <Stories onOverlayChange={onStoryOverlayChange} />
 
       {/* Divider */}
       <div className="h-px bg-border/50 mx-4" />
