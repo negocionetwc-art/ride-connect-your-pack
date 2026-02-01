@@ -9,7 +9,11 @@ import { StoryAvatar } from './stories/StoryAvatar';
 import { AddStoryPage } from './stories/AddStoryPage';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export const Stories = () => {
+interface StoriesProps {
+  onOverlayChange?: (isOpen: boolean) => void;
+}
+
+export const Stories = ({ onOverlayChange }: StoriesProps) => {
   const { data: userStories, isLoading, isError, refetch } = useStories();
   const { data: profile } = useProfile();
   const { hasActiveStory, refetch: refetchCurrentUserStory } = useCurrentUserStory();
@@ -19,6 +23,11 @@ export const Stories = () => {
   const [selectedUserIndex, setSelectedUserIndex] = useState(0);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
   const [addStoryOpen, setAddStoryOpen] = useState(false);
+
+  // Notificar parent quando overlay muda
+  useEffect(() => {
+    onOverlayChange?.(viewerOpen || addStoryOpen);
+  }, [viewerOpen, addStoryOpen, onOverlayChange]);
 
   // Encontrar índice do usuário atual nos stories (se tiver story ativo)
   const currentUserStoryIndex = userStories?.findIndex(
