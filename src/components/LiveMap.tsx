@@ -98,6 +98,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showNearbyRiders, setShowNearbyRiders] = useState(false);
+  const [buttonPosition, setButtonPosition] = useState({ x: 16, y: 0 }); // Posição inicial (left-4 = 16px)
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
@@ -379,17 +380,41 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
         </MapContainer>
       </div>
 
-      {/* Pilotos Próximos - Ícone com Avatares */}
+      {/* Pilotos Próximos - Ícone com Avatares (Arrastável) */}
       <AnimatePresence>
-        {!showNearbyRiders ? (
-          <motion.button
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowNearbyRiders(true)}
-            className="absolute bottom-32 left-4 p-2 bg-card rounded-full shadow-xl border border-border z-[1000] flex items-center justify-center"
-          >
+        <motion.div
+          drag
+          dragMomentum={false}
+          dragConstraints={{
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+          }}
+          dragElastic={0.1}
+          onDragEnd={(_, info) => {
+            // Salvar posição relativa ao viewport
+            setButtonPosition({ x: info.point.x, y: info.point.y });
+          }}
+          style={{
+            position: 'fixed',
+            left: buttonPosition.x || 16,
+            bottom: showNearbyRiders ? 'auto' : '8rem',
+            top: showNearbyRiders ? (buttonPosition.y || window.innerHeight - 200) : 'auto',
+            zIndex: showNearbyRiders ? 1001 : 1000,
+            transform: showNearbyRiders ? 'translate(-50%, -100%)' : 'none',
+          }}
+          className="cursor-move"
+        >
+          {!showNearbyRiders ? (
+            <motion.button
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowNearbyRiders(true)}
+              className="p-2 bg-card rounded-full shadow-xl border border-border flex items-center justify-center"
+            >
             {(() => {
               // Combinar todos os pilotos (mock + banco)
               const allRiders = [
@@ -445,15 +470,14 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
                 </div>
               );
             })()}
-          </motion.button>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="absolute bottom-32 left-4 right-4 z-[1000]"
-          >
-            <div className="bg-card rounded-2xl border border-border p-4 shadow-xl">
+            </motion.button>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-card rounded-2xl border border-border p-4 shadow-xl min-w-[300px] max-w-[90vw]"
+            >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold flex items-center gap-2">
                   <Navigation className="w-4 h-4 text-primary" />
