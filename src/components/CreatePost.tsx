@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 
 interface CreatePostProps {
   onClose: () => void;
+  initialType?: 'photo' | 'route' | 'live' | 'group';
 }
 
 const postTypes = [
@@ -19,8 +20,8 @@ const MAX_CAPTION_LENGTH = 2000;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGES = 10; // Máximo de imagens por post
 
-export const CreatePost = ({ onClose }: CreatePostProps) => {
-  const [selectedType, setSelectedType] = useState('photo');
+export const CreatePost = ({ onClose, initialType = 'photo' }: CreatePostProps) => {
+  const [selectedType, setSelectedType] = useState(initialType);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [caption, setCaption] = useState('');

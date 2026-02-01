@@ -47,7 +47,12 @@ const Index = () => {
       <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
       
       <AnimatePresence>
-        {showCreate && <CreatePost onClose={() => setShowCreate(false)} />}
+        {showCreate && (
+          <CreatePost 
+            onClose={() => setShowCreate(false)} 
+            initialType={createPostType}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
