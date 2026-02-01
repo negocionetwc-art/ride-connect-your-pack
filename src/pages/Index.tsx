@@ -7,17 +7,20 @@ import { Groups } from '@/components/Groups';
 import { Profile } from '@/components/Profile';
 import { CreatePost } from '@/components/CreatePost';
 import { RideTracker } from '@/components/RideTracker';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('feed');
   const [showCreate, setShowCreate] = useState(false);
+  const [createPostType, setCreatePostType] = useState<'photo' | 'route' | 'live' | 'group'>('photo');
 
   const handleTabChange = (tab: string) => {
-    if (tab === 'create') {
-      setShowCreate(true);
-    } else {
-      setActiveTab(tab);
-    }
+    setActiveTab(tab);
+  };
+
+  const handleFabOptionSelect = (option: 'photo' | 'route' | 'live' | 'group') => {
+    setCreatePostType(option);
+    setShowCreate(true);
   };
 
   const renderContent = () => {
@@ -41,6 +44,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {renderContent()}
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+      <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
       
       <AnimatePresence>
         {showCreate && <CreatePost onClose={() => setShowCreate(false)} />}
