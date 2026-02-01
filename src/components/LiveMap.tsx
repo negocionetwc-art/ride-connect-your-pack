@@ -425,10 +425,23 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
                   alt={selectedRider.name}
                   className="w-16 h-16 rounded-full ring-2 ring-primary"
                 />
-                <div>
-                  <h3 className="font-bold text-lg">{selectedRider.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg truncate">{selectedRider.name}</h3>
                   {selectedRider.bike && (
-                    <p className="text-sm text-muted-foreground">{selectedRider.bike}</p>
+                    <p className="text-sm text-muted-foreground truncate">{selectedRider.bike}</p>
+                  )}
+                  {/* Contadores de Seguidores e Seguindo */}
+                  {followStatus && (
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-semibold">{followStatus.followersCount}</span>
+                        <span className="text-xs text-muted-foreground">seguidores</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-semibold">{followStatus.followingCount}</span>
+                        <span className="text-xs text-muted-foreground">seguindo</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -486,7 +499,7 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
                     ) : (
                       <>
                         <UserPlus className="w-4 h-4" />
-                        <span>Seguir no Mapa</span>
+                        <span>Seguir</span>
                       </>
                     )}
                   </motion.button>
