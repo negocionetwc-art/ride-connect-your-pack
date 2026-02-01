@@ -79,6 +79,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
         text: storyText.trim() || undefined,
         text_position: 'center',
         text_y_percent: storyText.trim() ? textYPercent : undefined,
+        text_bg: storyText.trim() && storyText.trim().length > 12 ? true : undefined,
       },
       {
         onSuccess: () => {

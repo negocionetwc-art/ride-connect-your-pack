@@ -20,6 +20,15 @@ export type StoryWithProfile = Story & {
   text_color?: string;
   text_bg?: boolean;
   text_y_percent?: number;
+  stickers?: Array<{
+    id: string;
+    emoji: string;
+    x: number;
+    y: number;
+  }>;
+  highlight_id?: string;
+  is_sponsored?: boolean;
+  cta_url?: string;
 };
 
 export type UserStories = {
@@ -80,6 +89,10 @@ export function useStories() {
           text_color,
           text_bg,
           text_y_percent,
+          stickers,
+          highlight_id,
+          is_sponsored,
+          cta_url,
           created_at,
           expires_at,
           profile:profiles!stories_user_id_fkey (
@@ -159,6 +172,18 @@ export function useStories() {
         const mediaUrl = story.media_url || story.image_url || '';
         const mediaType = story.media_type || 'image';
         
+        // Parse stickers se for string JSON
+        let parsedStickers = undefined;
+        if (story.stickers) {
+          try {
+            parsedStickers = typeof story.stickers === 'string' 
+              ? JSON.parse(story.stickers) 
+              : story.stickers;
+          } catch (e) {
+            console.warn('Erro ao parsear stickers:', e);
+          }
+        }
+        
         return {
           id: story.id,
           user_id: story.user_id,
@@ -170,6 +195,10 @@ export function useStories() {
           text_color: story.text_color || undefined,
           text_bg: story.text_bg || undefined,
           text_y_percent: story.text_y_percent || undefined,
+          stickers: parsedStickers,
+          highlight_id: story.highlight_id || undefined,
+          is_sponsored: story.is_sponsored || undefined,
+          cta_url: story.cta_url || undefined,
           created_at: story.created_at,
           expires_at: story.expires_at,
           profile: profile,

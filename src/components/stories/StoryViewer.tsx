@@ -10,6 +10,8 @@ import { useStoryMediaGate } from '@/hooks/useStoryMediaGate';
 import { useDeleteStory } from '@/hooks/useDeleteStory';
 import { StoryViewerBackground } from './StoryViewerBackground';
 import { StoryTextOverlay } from './StoryTextOverlay';
+import { StoryStickers } from './StoryStickers';
+import { useStoryViews } from '@/hooks/useStoryViews';
 import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
@@ -62,6 +64,7 @@ export function StoryViewer({
   const { mutate: markAsViewed } = useStoryView();
   const { preloadUserStories } = useStoryPreloader(userStories);
   const deleteStoryMutation = useDeleteStory();
+  const { data: storyViews } = useStoryViews(currentStory?.id);
 
   // Obter ID do usuário atual
   useEffect(() => {
@@ -464,6 +467,34 @@ export function StoryViewer({
                 bg={currentStory.text_bg}
                 yPercent={currentStory.text_y_percent}
               />
+
+              {/* Stickers (UPGRADE 5) */}
+              {currentStory.stickers && (
+                <StoryStickers
+                  stickers={currentStory.stickers}
+                  isEditable={false}
+                />
+              )}
+
+              {/* Contador de visualizações (UPGRADE 6) */}
+              {isOwnStory && storyViews && storyViews.count > 0 && (
+                <div className="absolute bottom-16 left-4 text-white text-sm bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm z-50">
+                  👁 {storyViews.count}
+                </div>
+              )}
+
+              {/* CTA Story Patrocinado (UPGRADE 9) */}
+              {currentStory.is_sponsored && currentStory.cta_url && (
+                <a
+                  href={currentStory.cta_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-semibold z-50 hover:bg-primary/90 transition-colors"
+                >
+                  Saiba mais
+                </a>
+              )}
             </div>
           </div>
 

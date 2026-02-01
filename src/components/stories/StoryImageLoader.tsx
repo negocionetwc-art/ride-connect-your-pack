@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useState, useEffect, memo, useCallback, useRef } from 'react';
 
 interface StoryImageLoaderProps {
   src: string;
@@ -85,6 +85,31 @@ export const StoryVideoLoader = memo(function StoryVideoLoader({
 }: StoryVideoLoaderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
+
+  // UPGRADE 8: Gerar poster do primeiro frame
+  useEffect(() => {
+    if (!src || !videoRef?.current) return;
+
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const handleLoadedMetadata = () => {
+      if (video.videoWidth && video.videoHeight && ctx) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        const poster = canvas.toDataURL('image/jpeg', 0.8);
+        setPosterUrl(poster);
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [src, videoRef]);
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -99,12 +124,13 @@ export const StoryVideoLoader = memo(function StoryVideoLoader({
       <video
         ref={videoRef}
         src={src}
+        poster={posterUrl || undefined}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         } ${className}`}
         playsInline
         muted={false}
-        preload="metadata"
+        preload="auto"
         onLoadedMetadata={() => {
           setIsLoading(false);
           onLoad?.();

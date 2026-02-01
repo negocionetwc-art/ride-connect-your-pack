@@ -15,6 +15,9 @@ export function StoryTextOverlay({
 }: StoryTextOverlayProps) {
   if (!text) return null;
 
+  // UPGRADE 4: Fundo automático se texto > 12 caracteres
+  const needsBg = bg || text.length > 12;
+
   // Se yPercent estiver definido, usar ele (prioridade)
   // Senão, usar position
   const positionStyle = yPercent !== undefined
@@ -36,7 +39,7 @@ export function StoryTextOverlay({
     >
       <p
         className={`text-xl font-semibold text-center break-words ${
-          bg ? 'bg-black/50 px-4 py-2 rounded-xl' : ''
+          needsBg ? 'bg-black/50 px-4 py-2 rounded-xl' : ''
         }`}
         style={{ color }}
       >

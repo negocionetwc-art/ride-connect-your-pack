@@ -10,6 +10,16 @@ export interface CreateStoryData {
   text?: string;
   text_position?: 'top' | 'center' | 'bottom';
   text_y_percent?: number;
+  text_bg?: boolean;
+  stickers?: Array<{
+    id: string;
+    emoji: string;
+    x: number;
+    y: number;
+  }>;
+  highlight_id?: string;
+  is_sponsored?: boolean;
+  cta_url?: string;
 }
 
 export function useCreateStory() {
@@ -100,6 +110,11 @@ export function useCreateStory() {
           text: data.text || null,
           text_position: data.text_position || null,
           text_y_percent: data.text_y_percent || null,
+          text_bg: data.text_bg || null,
+          stickers: data.stickers ? JSON.stringify(data.stickers) : null,
+          highlight_id: data.highlight_id || null,
+          is_sponsored: data.is_sponsored || null,
+          cta_url: data.cta_url || null,
         })
         .select()
         .single();
