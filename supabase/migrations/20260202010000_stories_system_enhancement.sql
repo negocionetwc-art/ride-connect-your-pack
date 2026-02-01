@@ -25,10 +25,20 @@ SET media_url = COALESCE(image_url, '')
 WHERE media_url IS NULL;
 
 -- Tornar media_url NOT NULL após migração (com valor padrão para compatibilidade)
-ALTER TABLE public.stories
-ALTER COLUMN media_url SET DEFAULT '';
-ALTER TABLE public.stories
-ALTER COLUMN media_url SET NOT NULL;
+DO $$ 
+BEGIN
+  -- Só alterar se a coluna ainda permitir NULL
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'stories' 
+    AND column_name = 'media_url' 
+    AND is_nullable = 'YES'
+  ) THEN
+    ALTER TABLE public.stories ALTER COLUMN media_url SET DEFAULT '';
+    ALTER TABLE public.stories ALTER COLUMN media_url SET NOT NULL;
+  END IF;
+END $$;
 
 -- 3. GARANTIR QUE EXPIRES_AT SEJA SEMPRE CREATED_AT + 24H
 -- Criar trigger para garantir expires_at correto
@@ -42,12 +52,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Aplicar trigger
-DROP TRIGGER IF EXISTS set_story_expires_at_trigger ON public.stories;
-CREATE TRIGGER set_story_expires_at_trigger
-  BEFORE INSERT OR UPDATE ON public.stories
-  FOR EACH ROW
-  EXECUTE FUNCTION public.set_story_expires_at();
+-- Aplicar trigger (usar CREATE OR REPLACE não funciona para triggers, então verificamos antes)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'set_story_expires_at_trigger'
+  ) THEN
+    CREATE TRIGGER set_story_expires_at_trigger
+      BEFORE INSERT OR UPDATE ON public.stories
+      FOR EACH ROW
+      EXECUTE FUNCTION public.set_story_expires_at();
+  END IF;
+END $$;
 
 -- 4. CRIAR BUCKET DE STORAGE PARA STORIES
 INSERT INTO storage.buckets (id, name, public)
@@ -55,48 +72,74 @@ VALUES ('stories', 'stories', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 5. POLÍTICAS DE STORAGE PARA STORIES
--- Remover policies existentes se houver
-DROP POLICY IF EXISTS "Users can upload their own stories" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update their own stories" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete their own stories" ON storage.objects;
-DROP POLICY IF EXISTS "Stories are publicly readable" ON storage.objects;
+-- Verificar e criar policies apenas se não existirem
+DO $$ 
+BEGIN
+  -- Política: Usuários autenticados podem fazer upload de seus próprios stories
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'storage' 
+    AND tablename = 'objects' 
+    AND policyname = 'Users can upload their own stories'
+  ) THEN
+    CREATE POLICY "Users can upload their own stories"
+    ON storage.objects
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (
+      bucket_id = 'stories' AND
+      (storage.foldername(name))[1] = auth.uid()::text
+    );
+  END IF;
 
--- Política: Usuários autenticados podem fazer upload de seus próprios stories
-CREATE POLICY "Users can upload their own stories"
-ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  bucket_id = 'stories' AND
-  (storage.foldername(name))[1] = auth.uid()::text
-);
+  -- Política: Usuários autenticados podem atualizar seus próprios stories
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'storage' 
+    AND tablename = 'objects' 
+    AND policyname = 'Users can update their own stories'
+  ) THEN
+    CREATE POLICY "Users can update their own stories"
+    ON storage.objects
+    FOR UPDATE
+    TO authenticated
+    USING (
+      bucket_id = 'stories' AND
+      (storage.foldername(name))[1] = auth.uid()::text
+    );
+  END IF;
 
--- Política: Usuários autenticados podem atualizar seus próprios stories
-CREATE POLICY "Users can update their own stories"
-ON storage.objects
-FOR UPDATE
-TO authenticated
-USING (
-  bucket_id = 'stories' AND
-  (storage.foldername(name))[1] = auth.uid()::text
-);
+  -- Política: Usuários autenticados podem deletar seus próprios stories
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'storage' 
+    AND tablename = 'objects' 
+    AND policyname = 'Users can delete their own stories'
+  ) THEN
+    CREATE POLICY "Users can delete their own stories"
+    ON storage.objects
+    FOR DELETE
+    TO authenticated
+    USING (
+      bucket_id = 'stories' AND
+      (storage.foldername(name))[1] = auth.uid()::text
+    );
+  END IF;
 
--- Política: Usuários autenticados podem deletar seus próprios stories
-CREATE POLICY "Users can delete their own stories"
-ON storage.objects
-FOR DELETE
-TO authenticated
-USING (
-  bucket_id = 'stories' AND
-  (storage.foldername(name))[1] = auth.uid()::text
-);
-
--- Política: Stories são públicos para leitura
-CREATE POLICY "Stories are publicly readable"
-ON storage.objects
-FOR SELECT
-TO public
-USING (bucket_id = 'stories');
+  -- Política: Stories são públicos para leitura
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'storage' 
+    AND tablename = 'objects' 
+    AND policyname = 'Stories are publicly readable'
+  ) THEN
+    CREATE POLICY "Stories are publicly readable"
+    ON storage.objects
+    FOR SELECT
+    TO public
+    USING (bucket_id = 'stories');
+  END IF;
+END $$;
 
 -- 6. FUNÇÃO PARA BUSCAR STORIES ATIVOS COM STATUS DE VISUALIZAÇÃO
 CREATE OR REPLACE FUNCTION public.get_active_stories_with_views(user_uuid UUID)
