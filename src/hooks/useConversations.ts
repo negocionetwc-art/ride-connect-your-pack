@@ -88,6 +88,20 @@ export function useGetOrCreateConversation() {
         throw new Error('Não autenticado');
       }
 
+      // Verificar se está seguindo o usuário antes de criar conversa
+      const { data: isFollowing, error: followError } = await supabase
+        .rpc('is_following', { _profile_id: otherUserId });
+
+      if (followError) {
+        console.error('Erro ao verificar follow:', followError);
+        // Não bloquear se houver erro na verificação, apenas logar
+        // Pode ser que a função não exista ainda ou tenha algum problema
+      }
+
+      if (followError === null && isFollowing === false) {
+        throw new Error('Você precisa seguir este usuário para enviar mensagens');
+      }
+
       // Usar função do banco para obter ou criar conversa
       const { data, error } = await (supabase as any)
         .rpc('get_or_create_conversation', {

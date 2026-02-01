@@ -8,13 +8,24 @@ import { NewConversationDialog } from './NewConversationDialog';
 
 interface MessagesPageProps {
   onBack: () => void;
+  initialConversationId?: string | null;
 }
 
-export const MessagesPage = ({ onBack }: MessagesPageProps) => {
+export const MessagesPage = ({ onBack, initialConversationId }: MessagesPageProps) => {
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [isMobileChat, setIsMobileChat] = useState(false);
   const { data: conversations } = useConversations();
+
+  // Selecionar conversa inicial se fornecida
+  useEffect(() => {
+    if (initialConversationId && conversations) {
+      const conv = conversations.find(c => c.id === initialConversationId);
+      if (conv) {
+        setActiveConversation(conv);
+      }
+    }
+  }, [initialConversationId, conversations]);
 
   // Detectar se está em mobile
   useEffect(() => {

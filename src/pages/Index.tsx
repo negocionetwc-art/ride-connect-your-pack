@@ -20,6 +20,7 @@ const Index = () => {
   const [isRiderDetailOpen, setIsRiderDetailOpen] = useState(false);
   const [selectedRider, setSelectedRider] = useState<any>(null);
   const [showMessages, setShowMessages] = useState(false);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -53,6 +54,11 @@ const Index = () => {
     setShowMessages(false);
   };
 
+  const handleOpenMessages = (conversationId?: string) => {
+    setSelectedConversationId(conversationId || null);
+    setShowMessages(true);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'feed':
@@ -70,7 +76,7 @@ const Index = () => {
       case 'groups':
         return <Groups />;
       case 'profile':
-        return <Profile userId={viewingUserId} />;
+        return <Profile userId={viewingUserId} onMessageClick={handleOpenMessages} />;
       default:
         return (
           <Feed 
@@ -90,7 +96,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {showMessages ? (
-        <MessagesPage onBack={handleMessagesBack} />
+        <MessagesPage 
+          onBack={() => {
+            setShowMessages(false);
+            setSelectedConversationId(null);
+          }} 
+          initialConversationId={selectedConversationId}
+        />
       ) : (
         renderContent()
       )}

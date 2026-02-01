@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Edit2, Award, Route, Clock, Flame, Camera, UserPlus, UserCheck } from 'lucide-react';
+import { Settings, Edit2, Award, Route, Clock, Flame, Camera, UserPlus, UserCheck, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
@@ -8,6 +8,8 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { useProfilePosts } from '@/hooks/useProfilePosts';
 import { useFollow } from '@/hooks/useFollow';
 import { useFollowStatus } from '@/hooks/useFollowStatus';
+import { useGetOrCreateConversation } from '@/hooks/useConversations';
+import { useToast } from '@/hooks/use-toast';
 import { AuthPanel } from './profile/AuthPanel';
 import { SettingsSheet } from './profile/SettingsSheet';
 import { EditProfileDialog } from './profile/EditProfileDialog';
@@ -28,9 +30,10 @@ type Post = Database['public']['Tables']['posts']['Row'];
 
 interface ProfileProps {
   userId?: string | null; // Se fornecido, mostra perfil de outro usuário
+  onMessageClick?: (conversationId?: string) => void; // Callback para abrir mensagens
 }
 
-export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
+export const Profile = ({ userId: viewingUserId, onMessageClick }: ProfileProps = {}) => {
   const [user, setUser] = useState<any>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -57,6 +60,8 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
   // Sempre buscar status de follow (para contadores mesmo no próprio perfil)
   const { data: followStatus } = useFollowStatus(profileUserId);
   const followMutation = useFollow();
+  const { mutate: getOrCreateConversation, isPending: isCreatingConversation } = useGetOrCreateConversation();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -223,40 +228,81 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
                   </p>
                 </div>
                 
-                {/* Botão de seguir quando visualizando outro perfil */}
+                {/* Botões de seguir e mensagem quando visualizando outro perfil */}
                 {!isOwnProfile && profileUserId && (
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      followMutation.mutate({
-                        userId: profileUserId,
-                        isFollowing: followStatus?.isFollowing ?? false,
-                      });
-                    }}
-                    disabled={followMutation.isPending}
-                    className={`mt-3 px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors ${
-                      followStatus?.isFollowing
-                        ? 'bg-secondary text-foreground hover:bg-secondary/80'
-                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    }`}
-                  >
-                    {followMutation.isPending ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        <span>Processando...</span>
-                      </>
-                    ) : followStatus?.isFollowing ? (
-                      <>
-                        <UserCheck className="w-4 h-4" />
-                        <span>Seguindo</span>
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-4 h-4" />
-                        <span>Seguir</span>
-                      </>
+                  <div className="mt-3 flex items-center gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        followMutation.mutate({
+                          userId: profileUserId,
+                          isFollowing: followStatus?.isFollowing ?? false,
+                        });
+                      }}
+                      disabled={followMutation.isPending}
+                      className={`flex-1 px-4 py-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${
+                        followStatus?.isFollowing
+                          ? 'bg-secondary text-foreground hover:bg-secondary/80'
+                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      }`}
+                    >
+                      {followMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          <span>Processando...</span>
+                        </>
+                      ) : followStatus?.isFollowing ? (
+                        <>
+                          <UserCheck className="w-4 h-4" />
+                          <span>Seguindo</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4" />
+                          <span>Seguir</span>
+                        </>
+                      )}
+                    </motion.button>
+                    
+                    {/* Botão de mensagem - só aparece se estiver seguindo */}
+                    {followStatus?.isFollowing && (
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          getOrCreateConversation(profileUserId, {
+                            onSuccess: (conversationId) => {
+                              toast({
+                                title: 'Conversa criada!',
+                                description: 'Redirecionando para mensagens...',
+                              });
+                              // Chamar callback para abrir mensagens com o ID da conversa
+                              if (onMessageClick) {
+                                onMessageClick(conversationId);
+                              }
+                            },
+                            onError: (error: any) => {
+                              toast({
+                                title: 'Erro',
+                                description: error.message || 'Não foi possível iniciar a conversa',
+                                variant: 'destructive',
+                              });
+                            }
+                          });
+                        }}
+                        disabled={isCreatingConversation}
+                        className="px-4 py-2 rounded-xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                      >
+                        {isCreatingConversation ? (
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <MessageCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">Mensagem</span>
+                          </>
+                        )}
+                      </motion.button>
                     )}
-                  </motion.button>
+                  </div>
                 )}
               </div>
             </div>

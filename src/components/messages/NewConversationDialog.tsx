@@ -30,17 +30,35 @@ export const NewConversationDialog = ({
   const [searchQuery, setSearchQuery] = useState('');
   const { mutate: getOrCreateConversation, isPending } = useGetOrCreateConversation();
 
-  // Buscar usuários
+  // Buscar apenas usuários que o usuário atual está seguindo
   const { data: users, isLoading } = useQuery({
-    queryKey: ['search-users', searchQuery],
+    queryKey: ['search-following-users', searchQuery],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
+      // Primeiro buscar IDs dos usuários que está seguindo
+      const { data: followingData, error: followingError } = await supabase
+        .from('user_follows')
+        .select('following_id')
+        .eq('follower_id', user.id);
+
+      if (followingError) {
+        console.error('Erro ao buscar usuários seguidos:', followingError);
+        return [];
+      }
+
+      if (!followingData || followingData.length === 0) {
+        return [];
+      }
+
+      const followingIds = followingData.map(f => f.following_id);
+
+      // Buscar perfis dos usuários seguidos
       let query = supabase
         .from('profiles')
         .select('id, name, username, avatar_url, level')
-        .neq('id', user.id)
+        .in('id', followingIds)
         .limit(20);
 
       if (searchQuery.trim()) {
@@ -120,7 +138,11 @@ export const NewConversationDialog = ({
             <div className="text-center py-8 text-muted-foreground">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">Nenhum usuário encontrado</p>
-              <p className="text-sm mt-1">Tente buscar por outro nome</p>
+              <p className="text-sm mt-1">
+                {searchQuery.trim() 
+                  ? 'Tente buscar por outro nome' 
+                  : 'Você precisa seguir usuários para enviar mensagens'}
+              </p>
             </div>
           )}
         </ScrollArea>
