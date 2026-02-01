@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StoryProgress } from './StoryProgress';
 import { StoryImageLoader, StoryVideoLoader } from './StoryImageLoader';
+import { StoryInteractions } from './StoryInteractions';
 import { useStoryView } from '@/hooks/useStoryView';
 import { useStoryPreloader } from '@/hooks/useStoryPreloader';
 import type { UserStories } from '@/hooks/useStories';
@@ -14,7 +15,7 @@ interface StoryViewerProps {
   onClose: () => void;
 }
 
-const IMAGE_DURATION = 5000; // 5 segundos para imagens
+const IMAGE_DURATION = 5000;
 const MIN_SWIPE_DISTANCE = 50;
 
 export function StoryViewer({
@@ -29,54 +30,51 @@ export function StoryViewer({
   const [isPaused, setIsPaused] = useState(false);
   const [isMediaLoaded, setIsMediaLoaded] = useState(false);
   const [videoDuration, setVideoDuration] = useState(IMAGE_DURATION);
+  const [isInteractionPaused, setIsInteractionPaused] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const progressIntervalRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { mutate: markAsViewed } = useStoryView();
   const { preloadUserStories } = useStoryPreloader(userStories);
 
-  const currentUser = userStories[currentUserIndex];
-  const currentStories = currentUser?.stories || [];
-  const currentStory = currentStories[currentStoryIndex];
+  // Memoize current story data para evitar re-renders
+  const currentUser = useMemo(() => userStories[currentUserIndex], [userStories, currentUserIndex]);
+  const currentStories = useMemo(() => currentUser?.stories || [], [currentUser]);
+  const currentStory = useMemo(() => currentStories[currentStoryIndex], [currentStories, currentStoryIndex]);
 
   // Pré-carregar stories quando mudar de usuário
   useEffect(() => {
     preloadUserStories(currentUserIndex);
   }, [currentUserIndex, preloadUserStories]);
 
-  // Handlers de navegação
+  // Navegação otimizada
   const handleNext = useCallback(() => {
-    setCurrentStoryIndex(prev => {
-      const currentStories = userStories[currentUserIndex]?.stories || [];
-      if (prev < currentStories.length - 1) {
-        return prev + 1;
-      } else if (currentUserIndex < userStories.length - 1) {
-        setCurrentUserIndex(currentUserIndex + 1);
-        return 0;
-      } else {
-        onClose();
-        return prev;
-      }
-    });
+    if (currentStoryIndex < currentStories.length - 1) {
+      setCurrentStoryIndex(prev => prev + 1);
+    } else if (currentUserIndex < userStories.length - 1) {
+      setCurrentUserIndex(prev => prev + 1);
+      setCurrentStoryIndex(0);
+    } else {
+      onClose();
+      return;
+    }
     setProgress(0);
     setIsMediaLoaded(false);
-  }, [currentUserIndex, userStories, onClose]);
+  }, [currentStoryIndex, currentStories.length, currentUserIndex, userStories.length, onClose]);
 
   const handlePrevious = useCallback(() => {
-    setCurrentStoryIndex(prev => {
-      if (prev > 0) {
-        return prev - 1;
-      } else if (currentUserIndex > 0) {
-        const prevUser = userStories[currentUserIndex - 1];
-        setCurrentUserIndex(currentUserIndex - 1);
-        return prevUser.stories.length - 1;
-      }
-      return prev;
-    });
+    if (currentStoryIndex > 0) {
+      setCurrentStoryIndex(prev => prev - 1);
+    } else if (currentUserIndex > 0) {
+      const prevUser = userStories[currentUserIndex - 1];
+      setCurrentUserIndex(prev => prev - 1);
+      setCurrentStoryIndex(prevUser.stories.length - 1);
+    }
     setProgress(0);
     setIsMediaLoaded(false);
-  }, [currentUserIndex, userStories]);
+  }, [currentStoryIndex, currentUserIndex, userStories]);
 
   // Callback quando mídia carrega
   const handleMediaLoaded = useCallback(() => {
@@ -89,37 +87,36 @@ export function StoryViewer({
     } else {
       setVideoDuration(IMAGE_DURATION);
     }
-  }, [currentStory]);
+  }, [currentStory?.media_type]);
 
-  // Marcar como visto quando story muda
+  // Marcar como visto
   useEffect(() => {
     if (currentStory && !currentStory.is_viewed) {
       markAsViewed(currentStory.id);
     }
   }, [currentStory, markAsViewed]);
 
-  // Gerenciar progresso automático
+  // Progresso automático - otimizado com requestAnimationFrame
   useEffect(() => {
-    if (!currentStory || isPaused || !isMediaLoaded) {
+    const shouldProgress = currentStory && 
+      !isPaused && 
+      !isInteractionPaused && 
+      isMediaLoaded && 
+      currentStory.media_type !== 'video';
+
+    if (!shouldProgress) {
       if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
+        cancelAnimationFrame(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
       return;
     }
 
-    if (currentStory.media_type === 'video' && videoRef.current) {
-      const video = videoRef.current;
-      video.play().catch(console.error);
-      return;
-    }
-
-    // Para imagens, usar intervalo
     setProgress(0);
-    const startTime = Date.now();
+    const startTime = performance.now();
     
-    progressIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
       const newProgress = (elapsed / videoDuration) * 100;
       
       if (newProgress >= 100) {
@@ -127,41 +124,51 @@ export function StoryViewer({
         handleNext();
       } else {
         setProgress(newProgress);
+        progressIntervalRef.current = requestAnimationFrame(animate);
       }
-    }, 50);
+    };
+
+    progressIntervalRef.current = requestAnimationFrame(animate);
 
     return () => {
       if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
+        cancelAnimationFrame(progressIntervalRef.current);
       }
     };
-  }, [currentStory, isPaused, isMediaLoaded, videoDuration, handleNext]);
+  }, [currentStory, isPaused, isInteractionPaused, isMediaLoaded, videoDuration, handleNext]);
+
+  // Controlar vídeo
+  useEffect(() => {
+    if (currentStory?.media_type === 'video' && videoRef.current && isMediaLoaded) {
+      if (isPaused || isInteractionPaused) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(console.error);
+      }
+    }
+  }, [isPaused, isInteractionPaused, isMediaLoaded, currentStory?.media_type]);
 
   // Handle de progresso de vídeo
   const handleVideoTimeUpdate = useCallback(() => {
     if (videoRef.current) {
       const video = videoRef.current;
       if (video.duration && !isNaN(video.duration)) {
-        const currentTime = video.currentTime;
-        const duration = video.duration;
-        setProgress((currentTime / duration) * 100);
+        setProgress((video.currentTime / video.duration) * 100);
       }
     }
   }, []);
 
-  // Gestos touch
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // Gestos touch otimizados para mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartRef.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
+      time: Date.now(),
     };
     setIsPaused(true);
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-  };
+  }, []);
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!touchStartRef.current) {
       setIsPaused(false);
       return;
@@ -169,29 +176,45 @@ export function StoryViewer({
 
     const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const deltaTime = Date.now() - touchStartRef.current.time;
 
+    // Swipe para baixo fecha
     if (deltaY > MIN_SWIPE_DISTANCE && Math.abs(deltaX) < Math.abs(deltaY)) {
       onClose();
       return;
     }
 
+    // Swipe horizontal navega
     if (Math.abs(deltaX) > MIN_SWIPE_DISTANCE && Math.abs(deltaY) < Math.abs(deltaX)) {
       if (deltaX > 0) {
         handlePrevious();
       } else {
         handleNext();
       }
+      touchStartRef.current = null;
+      setIsPaused(false);
+      return;
+    }
+
+    // Tap rápido navega
+    if (deltaTime < 200 && Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const clickX = e.changedTouches[0].clientX - rect.left;
+        if (clickX < rect.width / 3) {
+          handlePrevious();
+        } else if (clickX > (rect.width * 2) / 3) {
+          handleNext();
+        }
+      }
     }
 
     touchStartRef.current = null;
     setIsPaused(false);
-    if (videoRef.current) {
-      videoRef.current.play();
-    }
-  };
+  }, [handleNext, handlePrevious, onClose]);
 
-  // Click handlers para desktop
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Click para desktop
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
@@ -201,16 +224,18 @@ export function StoryViewer({
     } else if (clickX > (width * 2) / 3) {
       handleNext();
     } else {
-      setIsPaused(!isPaused);
-      if (videoRef.current) {
-        if (isPaused) {
-          videoRef.current.play();
-        } else {
-          videoRef.current.pause();
-        }
-      }
+      setIsPaused(prev => !prev);
     }
-  };
+  }, [handleNext, handlePrevious]);
+
+  // Callbacks para interações
+  const handleInteractionPause = useCallback(() => {
+    setIsInteractionPaused(true);
+  }, []);
+
+  const handleInteractionResume = useCallback(() => {
+    setIsInteractionPaused(false);
+  }, []);
 
   if (!currentStory || !currentUser) {
     return null;
@@ -219,28 +244,28 @@ export function StoryViewer({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-background"
+        ref={containerRef}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.15 }}
       >
-        {/* Fundo com blur da imagem atual */}
-        {isMediaLoaded && (
+        {/* Fundo com blur - apenas quando carregado */}
+        {isMediaLoaded && currentStory.media_url && (
           <div
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute inset-0 will-change-transform"
             style={{
               backgroundImage: `url(${currentStory.media_url})`,
-              filter: 'blur(30px)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(40px) brightness(0.4)',
               transform: 'scale(1.2)',
             }}
           />
         )}
 
-        {/* Overlay escuro */}
-        <div className="absolute inset-0 bg-background/60" />
-
-        {/* Conteúdo */}
+        {/* Conteúdo principal */}
         <div
           className="relative w-full h-full flex items-center justify-center"
           onTouchStart={handleTouchStart}
@@ -253,23 +278,24 @@ export function StoryViewer({
               stories={currentStories}
               currentIndex={currentStoryIndex}
               progress={progress}
-              isPaused={isPaused || !isMediaLoaded}
+              isPaused={isPaused || isInteractionPaused || !isMediaLoaded}
             />
           )}
 
-          {/* Header com informações do usuário */}
+          {/* Header */}
           <div className="absolute top-12 left-0 right-0 z-50 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/50">
                 <img
                   src={currentUser.profile.avatar_url || '/placeholder.svg'}
                   alt={currentUser.profile.name}
                   className="w-full h-full object-cover"
+                  loading="eager"
                 />
               </div>
               <div>
-                <p className="text-foreground font-medium">{currentUser.profile.name}</p>
-                <p className="text-muted-foreground text-xs">@{currentUser.profile.username}</p>
+                <p className="text-white font-medium text-shadow">{currentUser.profile.name}</p>
+                <p className="text-white/70 text-xs">@{currentUser.profile.username}</p>
               </div>
             </div>
             <button
@@ -277,60 +303,65 @@ export function StoryViewer({
                 e.stopPropagation();
                 onClose();
               }}
-              className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+              className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
 
-          {/* Mídia */}
+          {/* Mídia - container fixo para evitar layout shift */}
           <div className="relative w-full max-w-sm aspect-[9/16] mx-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${currentUser.user_id}-${currentStory.id}`}
-                className="absolute inset-0 rounded-2xl overflow-hidden bg-muted"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-              >
-                {currentStory.media_type === 'image' ? (
-                  <StoryImageLoader
-                    src={currentStory.media_url}
-                    alt="Story"
-                    onLoad={handleMediaLoaded}
-                  />
-                ) : (
-                  <StoryVideoLoader
-                    src={currentStory.media_url}
-                    videoRef={videoRef}
-                    onLoad={handleMediaLoaded}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    onEnded={handleNext}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
+            <div className="absolute inset-0 rounded-2xl overflow-hidden bg-black">
+              {/* Skeleton sempre visível até carregar */}
+              {!isMediaLoaded && (
+                <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+                  <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                </div>
+              )}
+              
+              {currentStory.media_type === 'image' ? (
+                <StoryImageLoader
+                  src={currentStory.media_url}
+                  alt="Story"
+                  onLoad={handleMediaLoaded}
+                />
+              ) : (
+                <StoryVideoLoader
+                  src={currentStory.media_url}
+                  videoRef={videoRef}
+                  onLoad={handleMediaLoaded}
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onEnded={handleNext}
+                />
+              )}
+            </div>
           </div>
 
-          {/* Indicadores de navegação (desktop) */}
+          {/* Interações (like/comment) */}
+          <StoryInteractions
+            storyId={currentStory.id}
+            onPause={handleInteractionPause}
+            onResume={handleInteractionResume}
+          />
+
+          {/* Navegação desktop */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               handlePrevious();
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-muted/50 hover:bg-muted transition-colors opacity-0 hover:opacity-100"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-all opacity-0 hover:opacity-100 hidden md:block"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-6 h-6 text-white" />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleNext();
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-muted/50 hover:bg-muted transition-colors opacity-0 hover:opacity-100"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-all opacity-0 hover:opacity-100 hidden md:block"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-6 h-6 text-white" />
           </button>
         </div>
       </motion.div>
