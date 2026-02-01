@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 
 interface StoryImageLoaderProps {
   src: string;
@@ -22,28 +22,20 @@ export const StoryImageLoader = memo(function StoryImageLoader({
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
-
-    const img = new Image();
-    img.decoding = 'async';
-    
-    img.onload = () => {
-      setIsLoading(false);
-      onLoad?.();
-    };
-    
-    img.onerror = () => {
-      setHasError(true);
-      setIsLoading(false);
-      onError?.();
-    };
-
-    img.src = src;
-
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
   }, [src, onLoad, onError]);
+
+  // Importante: usar o onLoad do elemento <img> (e não um preloader separado)
+  // evita “double-load”/race conditions que costumam causar flicker em mobile.
+  const handleLoad = useCallback(() => {
+    setIsLoading(false);
+    onLoad?.();
+  }, [onLoad]);
+
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoading(false);
+    onError?.();
+  }, [onError]);
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -54,8 +46,11 @@ export const StoryImageLoader = memo(function StoryImageLoader({
         className={`w-full h-full object-contain transition-opacity duration-200 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
+        style={{ willChange: 'opacity' }}
         loading="eager"
         decoding="async"
+        onLoad={handleLoad}
+        onError={handleError}
       />
 
       {/* Estado de erro */}
