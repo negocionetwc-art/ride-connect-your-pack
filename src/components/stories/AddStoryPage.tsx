@@ -262,8 +262,8 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
                       text={storyText}
                       color="#fff"
                       bg={storyText.trim().length > 12}
-                      xPercent={textXPercent}
-                      yPercent={textYPercent}
+                      initialX={textXPercent}
+                      initialY={textYPercent}
                       onPositionChange={(x, y) => {
                         setTextXPercent(x);
                         setTextYPercent(y);

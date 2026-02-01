@@ -468,8 +468,8 @@ export function StoryViewer({
                   text={currentStory.text}
                   color={currentStory.text_color || '#ffffff'}
                   bg={currentStory.text_bg || (currentStory.text.length > 12)}
-                  xPercent={currentStory.text_x_percent != null ? Number(currentStory.text_x_percent) : 0.5}
-                  yPercent={currentStory.text_y_percent != null ? Number(currentStory.text_y_percent) : 0.5}
+                  initialX={currentStory.text_x_percent != null ? Number(currentStory.text_x_percent) : 0.5}
+                  initialY={currentStory.text_y_percent != null ? Number(currentStory.text_y_percent) : 0.5}
                 />
               )}
 

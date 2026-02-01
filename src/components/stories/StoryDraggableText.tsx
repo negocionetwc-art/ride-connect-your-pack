@@ -1,24 +1,40 @@
 import { motion } from 'framer-motion';
-import { useRef } from 'react';
+import { useRef, useState, useLayoutEffect } from 'react';
 
 interface StoryDraggableTextProps {
   text: string;
   color?: string;
   bg?: boolean;
-  xPercent?: number;
-  yPercent?: number;
-  onPositionChange?: (xPercent: number, yPercent: number) => void;
+  initialX?: number; // 0 → 1
+  initialY?: number; // 0 → 1
+  onPositionChange?: (x: number, y: number) => void;
 }
 
 export function StoryDraggableText({
   text,
   color = '#fff',
   bg = false,
-  xPercent = 0.5,
-  yPercent = 0.5,
+  initialX = 0.5,
+  initialY = 0.5,
   onPositionChange,
 }: StoryDraggableTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+
+  // Converter percentual → px APENAS UMA VEZ
+  useLayoutEffect(() => {
+    if (!containerRef.current || !textRef.current) return;
+
+    const c = containerRef.current.getBoundingClientRect();
+    const t = textRef.current.getBoundingClientRect();
+
+    setPos({
+      x: initialX * c.width - t.width / 2,
+      y: initialY * c.height - t.height / 2,
+    });
+  }, [initialX, initialY]);
 
   return (
     <div
@@ -26,28 +42,31 @@ export function StoryDraggableText({
       className="absolute inset-0 z-40"
     >
       <motion.div
+        ref={textRef}
         drag
         dragMomentum={false}
-        dragElastic={0.2}
-        dragConstraints={containerRef}
+        dragElastic={0.15}
+        style={{
+          x: pos.x,
+          y: pos.y,
+        }}
         onDragEnd={(_, info) => {
-          if (!containerRef.current) return;
+          if (!containerRef.current || !textRef.current) return;
 
-          const rect = containerRef.current.getBoundingClientRect();
-          const xPercent = (info.point.x - rect.left) / rect.width;
-          const yPercent = (info.point.y - rect.top) / rect.height;
+          const c = containerRef.current.getBoundingClientRect();
+          const t = textRef.current.getBoundingClientRect();
+
+          const newX = info.point.x - c.left - t.width / 2;
+          const newY = info.point.y - c.top - t.height / 2;
+
+          setPos({ x: newX, y: newY });
 
           onPositionChange?.(
-            Math.min(Math.max(xPercent, 0), 1),
-            Math.min(Math.max(yPercent, 0), 1)
+            Math.min(Math.max((newX + t.width / 2) / c.width, 0), 1),
+            Math.min(Math.max((newY + t.height / 2) / c.height, 0), 1)
           );
         }}
         className="absolute cursor-move select-none touch-none"
-        style={{
-          left: `${xPercent * 100}%`,
-          top: `${yPercent * 100}%`,
-          transform: 'translate(-50%, -50%)',
-        }}
       >
         <p
           className={`text-xl font-semibold whitespace-pre-wrap break-words ${
