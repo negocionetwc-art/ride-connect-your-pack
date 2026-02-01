@@ -16,6 +16,8 @@ import { Switch } from '@/components/ui/switch';
 import { useQuery } from '@tanstack/react-query';
 import { useFollow } from '@/hooks/useFollow';
 import { useFollowStatus } from '@/hooks/useFollowStatus';
+import { useGetOrCreateConversation } from '@/hooks/useConversations';
+import { useToast } from '@/hooks/use-toast';
 
 type Group = Database['public']['Tables']['groups']['Row'];
 type UserLocation = Database['public']['Tables']['user_locations']['Row'];
@@ -241,9 +243,10 @@ interface LiveMapProps {
   onRiderSelectChange?: (isOpen: boolean) => void;
   selectedRider?: any;
   onRiderSelect?: (rider: any) => void;
+  onMessageClick?: (conversationId?: string) => void;
 }
 
-export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRider, onRiderSelect }: LiveMapProps) => {
+export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRider, onRiderSelect, onMessageClick }: LiveMapProps) => {
   const [internalSelectedRider, setInternalSelectedRider] = useState<RiderInfo | null>(null);
   const selectedRider = externalSelectedRider !== undefined ? externalSelectedRider : internalSelectedRider;
   const setSelectedRider = onRiderSelect || ((rider: RiderInfo | null) => {
@@ -286,6 +289,10 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
   // Hook para seguir/deseguir
   const followMutation = useFollow();
   const { data: followStatus } = useFollowStatus(selectedRider?.id);
+  
+  // Hook para criar/abrir conversa
+  const { mutate: getOrCreateConversation, isPending: isCreatingConversation } = useGetOrCreateConversation();
+  const { toast } = useToast();
   
   // Verificar se o rider selecionado é o próprio usuário
   const [isOwnRider, setIsOwnRider] = useState(false);
@@ -572,9 +579,49 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
                     )}
                   </motion.button>
                 )}
-                <button className="flex-1 py-3 bg-secondary rounded-xl font-semibold">
-                  Mensagem
-                </button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    if (!selectedRider?.id) return;
+                    
+                    getOrCreateConversation(selectedRider.id, {
+                      onSuccess: (conversationId) => {
+                        toast({
+                          title: 'Conversa criada!',
+                          description: 'Redirecionando para mensagens...',
+                        });
+                        // Chamar callback para abrir mensagens com o ID da conversa
+                        if (onMessageClick) {
+                          onMessageClick(conversationId);
+                        }
+                        // Fechar o card do rider
+                        setSelectedRider(null);
+                      },
+                      onError: (error: any) => {
+                        toast({
+                          title: 'Erro ao criar conversa',
+                          description: error.message || 'Não foi possível iniciar a conversa',
+                          variant: 'destructive',
+                        });
+                      },
+                    });
+                  }}
+                  disabled={isCreatingConversation || !selectedRider?.id}
+                  className={`flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors ${
+                    isCreatingConversation || !selectedRider?.id
+                      ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
+                      : 'bg-secondary text-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  {isCreatingConversation ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>Processando...</span>
+                    </>
+                  ) : (
+                    'Mensagem'
+                  )}
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

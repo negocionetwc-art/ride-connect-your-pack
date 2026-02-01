@@ -70,7 +70,12 @@ const Index = () => {
           />
         );
       case 'map':
-        return <LiveMap onRiderSelectChange={setIsRiderDetailOpen} selectedRider={selectedRider} onRiderSelect={(rider) => { setSelectedRider(rider); setIsRiderDetailOpen(!!rider); }} />;
+        return <LiveMap 
+          onRiderSelectChange={setIsRiderDetailOpen} 
+          selectedRider={selectedRider} 
+          onRiderSelect={(rider) => { setSelectedRider(rider); setIsRiderDetailOpen(!!rider); }}
+          onMessageClick={handleOpenMessages}
+        />;
       case 'ride':
         return <RideTracker />;
       case 'groups':
