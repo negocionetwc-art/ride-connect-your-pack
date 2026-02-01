@@ -60,7 +60,13 @@ export function useStories() {
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
         .select(`
-          *,
+          id,
+          user_id,
+          media_url,
+          media_type,
+          image_url,
+          created_at,
+          expires_at,
           profile:profiles!stories_user_id_fkey (
             id,
             name,
@@ -73,6 +79,11 @@ export function useStories() {
 
       if (storiesError) {
         console.error('Erro ao buscar stories:', storiesError);
+        // Se o erro for relacionado a campos que não existem, retornar array vazio
+        if (storiesError.message?.includes('column') || storiesError.message?.includes('does not exist')) {
+          console.warn('Campos de stories ainda não foram migrados. Retornando array vazio.');
+          return [];
+        }
         throw storiesError;
       }
 
@@ -99,8 +110,14 @@ export function useStories() {
         const profile = Array.isArray(story.profile) ? story.profile[0] : story.profile;
         const viewedAt = viewsMap.get(story.id);
         
+        // Usar media_url se existir, senão usar image_url (compatibilidade)
+        const mediaUrl = (story as any).media_url || (story as any).image_url || '';
+        const mediaType = (story as any).media_type || 'image';
+        
         return {
           ...story,
+          media_url: mediaUrl,
+          media_type: mediaType as 'image' | 'video',
           profile: profile as Profile,
           is_viewed: !!viewedAt,
           viewed_at: viewedAt || null,

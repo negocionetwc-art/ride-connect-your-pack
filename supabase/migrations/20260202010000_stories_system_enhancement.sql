@@ -52,7 +52,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Aplicar trigger (usar CREATE OR REPLACE não funciona para triggers, então verificamos antes)
+-- Aplicar trigger (criar apenas se não existir)
 DO $$ 
 BEGIN
   IF NOT EXISTS (
@@ -72,16 +72,11 @@ VALUES ('stories', 'stories', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 5. POLÍTICAS DE STORAGE PARA STORIES
--- Verificar e criar policies apenas se não existirem
+-- Criar policies com tratamento de exceção (se já existirem, ignora o erro)
 DO $$ 
 BEGIN
   -- Política: Usuários autenticados podem fazer upload de seus próprios stories
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'storage' 
-    AND tablename = 'objects' 
-    AND policyname = 'Users can upload their own stories'
-  ) THEN
+  BEGIN
     CREATE POLICY "Users can upload their own stories"
     ON storage.objects
     FOR INSERT
@@ -90,15 +85,12 @@ BEGIN
       bucket_id = 'stories' AND
       (storage.foldername(name))[1] = auth.uid()::text
     );
-  END IF;
+  EXCEPTION
+    WHEN duplicate_object THEN null;
+  END;
 
   -- Política: Usuários autenticados podem atualizar seus próprios stories
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'storage' 
-    AND tablename = 'objects' 
-    AND policyname = 'Users can update their own stories'
-  ) THEN
+  BEGIN
     CREATE POLICY "Users can update their own stories"
     ON storage.objects
     FOR UPDATE
@@ -107,15 +99,12 @@ BEGIN
       bucket_id = 'stories' AND
       (storage.foldername(name))[1] = auth.uid()::text
     );
-  END IF;
+  EXCEPTION
+    WHEN duplicate_object THEN null;
+  END;
 
   -- Política: Usuários autenticados podem deletar seus próprios stories
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'storage' 
-    AND tablename = 'objects' 
-    AND policyname = 'Users can delete their own stories'
-  ) THEN
+  BEGIN
     CREATE POLICY "Users can delete their own stories"
     ON storage.objects
     FOR DELETE
@@ -124,21 +113,20 @@ BEGIN
       bucket_id = 'stories' AND
       (storage.foldername(name))[1] = auth.uid()::text
     );
-  END IF;
+  EXCEPTION
+    WHEN duplicate_object THEN null;
+  END;
 
   -- Política: Stories são públicos para leitura
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies 
-    WHERE schemaname = 'storage' 
-    AND tablename = 'objects' 
-    AND policyname = 'Stories are publicly readable'
-  ) THEN
+  BEGIN
     CREATE POLICY "Stories are publicly readable"
     ON storage.objects
     FOR SELECT
     TO public
     USING (bucket_id = 'stories');
-  END IF;
+  EXCEPTION
+    WHEN duplicate_object THEN null;
+  END;
 END $$;
 
 -- 6. FUNÇÃO PARA BUSCAR STORIES ATIVOS COM STATUS DE VISUALIZAÇÃO
