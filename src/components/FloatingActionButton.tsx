@@ -17,8 +17,14 @@ export const FloatingActionButton = ({ onOptionSelect }: FloatingActionButtonPro
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOptionClick = (optionId: 'photo' | 'route' | 'live' | 'group') => {
+    console.log('FAB: Option clicked:', optionId);
     onOptionSelect(optionId);
     setIsOpen(false);
+  };
+
+  const handleMainButtonClick = () => {
+    console.log('FAB: Main button clicked, isOpen:', isOpen);
+    setIsOpen(!isOpen);
   };
 
   return (
@@ -91,7 +97,7 @@ export const FloatingActionButton = ({ onOptionSelect }: FloatingActionButtonPro
 
         {/* Main FAB Button */}
         <motion.button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleMainButtonClick}
           className={`relative p-4 rounded-full shadow-2xl transition-all duration-300 ${
             isOpen 
               ? 'bg-gradient-to-br from-red-500 to-red-600 rotate-45' 

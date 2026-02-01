@@ -19,8 +19,10 @@ const Index = () => {
   };
 
   const handleFabOptionSelect = (option: 'photo' | 'route' | 'live' | 'group') => {
+    console.log('Index: FAB option selected:', option);
     setCreatePostType(option);
     setShowCreate(true);
+    console.log('Index: showCreate set to true');
   };
 
   const renderContent = () => {
