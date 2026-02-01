@@ -8,6 +8,7 @@ import { Profile } from '@/components/Profile';
 import { CreatePost } from '@/components/CreatePost';
 import { RideTracker } from '@/components/RideTracker';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { NearbyRidersButton } from '@/components/NearbyRidersButton';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('feed');
@@ -16,6 +17,7 @@ const Index = () => {
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [isStoryOverlayOpen, setIsStoryOverlayOpen] = useState(false);
   const [isRiderDetailOpen, setIsRiderDetailOpen] = useState(false);
+  const [selectedRider, setSelectedRider] = useState<any>(null);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -51,7 +53,7 @@ const Index = () => {
           />
         );
       case 'map':
-        return <LiveMap onRiderSelectChange={setIsRiderDetailOpen} />;
+        return <LiveMap onRiderSelectChange={setIsRiderDetailOpen} selectedRider={selectedRider} onRiderSelect={(rider) => { setSelectedRider(rider); setIsRiderDetailOpen(!!rider); }} />;
       case 'ride':
         return <RideTracker />;
       case 'groups':
@@ -81,6 +83,16 @@ const Index = () => {
       )}
       {!hideFAB && (
         <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
+      )}
+      
+      {/* Ícone de Pilotos Próximos - Visível em todas as páginas */}
+      {!hideNavigation && (
+        <NearbyRidersButton 
+          onRiderSelect={(rider) => {
+            setSelectedRider(rider);
+            setIsRiderDetailOpen(true);
+          }}
+        />
       )}
       
       <AnimatePresence>

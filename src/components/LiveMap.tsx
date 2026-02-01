@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation, Radio, ChevronUp, X, MapPin, Loader2, UserPlus, UserCheck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -92,16 +92,18 @@ function OwnLocationMarker({
 
 interface LiveMapProps {
   onRiderSelectChange?: (isOpen: boolean) => void;
+  selectedRider?: any;
+  onRiderSelect?: (rider: any) => void;
 }
 
-export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
-  const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
+export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRider, onRiderSelect }: LiveMapProps) => {
+  const [internalSelectedRider, setInternalSelectedRider] = useState<RiderInfo | null>(null);
+  const selectedRider = externalSelectedRider !== undefined ? externalSelectedRider : internalSelectedRider;
+  const setSelectedRider = onRiderSelect || ((rider: RiderInfo | null) => {
+    setInternalSelectedRider(rider);
+    onRiderSelectChange?.(!!rider);
+  });
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  const [showNearbyRiders, setShowNearbyRiders] = useState(false);
-  const [buttonPositionPercent, setButtonPositionPercent] = useState<{ x: number; y: number } | null>(null); // Posição em percentual (0-1)
-  const [buttonPixelPos, setButtonPixelPos] = useState({ x: 0, y: 0 }); // Posição em pixels para o drag
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLDivElement>(null);
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
@@ -163,28 +165,6 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
     onRiderSelectChange?.(!!selectedRider);
   }, [selectedRider, onRiderSelectChange]);
 
-  // Converter percentual → px APENAS UMA VEZ (igual StoryDraggableText)
-  useLayoutEffect(() => {
-    if (!containerRef.current || !buttonRef.current) return;
-
-    const c = containerRef.current.getBoundingClientRect();
-    const b = buttonRef.current.getBoundingClientRect();
-
-    if (buttonPositionPercent) {
-      setButtonPixelPos({
-        x: buttonPositionPercent.x * c.width - b.width / 2,
-        y: buttonPositionPercent.y * c.height - b.height / 2,
-      });
-    } else {
-      // Posição padrão: left 16px, bottom 8rem (convertido para percentual)
-      const defaultX = 16 / c.width;
-      const defaultY = (c.height - 128) / c.height; // 8rem = 128px
-      setButtonPixelPos({
-        x: defaultX * c.width - b.width / 2,
-        y: defaultY * c.height - b.height / 2,
-      });
-    }
-  }, [buttonPositionPercent]);
 
   // Atualizar localização do mapa quando o usuário compartilhar
   useEffect(() => {
@@ -245,7 +225,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   }, []);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 flex flex-col" style={{ height: '100vh' }}>
+    <div className="fixed inset-0 flex flex-col" style={{ height: '100vh' }}>
       {/* Header */}
       <header className="sticky top-0 z-40 glass border-b border-border/30 flex-shrink-0">
         <div className="flex items-center justify-between px-4 h-14">
@@ -406,201 +386,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
         </MapContainer>
       </div>
 
-      {/* Pilotos Próximos - Ícone com Avatares (Arrastável) */}
-      <AnimatePresence>
-        <motion.div
-          ref={buttonRef}
-          drag
-          dragMomentum={false}
-          dragElastic={0.15}
-          style={{
-            position: 'fixed',
-            x: buttonPixelPos.x,
-            y: buttonPixelPos.y,
-            zIndex: showNearbyRiders ? 1001 : 1000,
-          }}
-          onDragEnd={(_, info) => {
-            if (!containerRef.current || !buttonRef.current) return;
-
-            const c = containerRef.current.getBoundingClientRect();
-            const b = buttonRef.current.getBoundingClientRect();
-
-            const newX = info.point.x - c.left - b.width / 2;
-            const newY = info.point.y - c.top - b.height / 2;
-
-            setButtonPixelPos({ x: newX, y: newY });
-
-            // Salvar em percentual
-            setButtonPositionPercent({
-              x: Math.min(Math.max((newX + b.width / 2) / c.width, 0), 1),
-              y: Math.min(Math.max((newY + b.height / 2) / c.height, 0), 1),
-            });
-          }}
-          className="absolute cursor-move select-none touch-none"
-        >
-          {!showNearbyRiders ? (
-            <motion.button
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowNearbyRiders(true)}
-              className="p-2 bg-card rounded-full shadow-xl border border-border flex items-center justify-center"
-            >
-            {(() => {
-              // Combinar todos os pilotos (mock + banco)
-              const allRiders = [
-                ...onlineRiders.map(rider => ({
-                  id: rider.id,
-                  avatar: rider.avatar,
-                  name: rider.name,
-                })),
-                ...onlineLocations.map(location => {
-                  const profile = onlineRidersProfiles.get(location.user_id);
-                  return profile ? {
-                    id: location.user_id,
-                    avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-                    name: profile.name,
-                  } : null;
-                }).filter(Boolean) as Array<{ id: string; avatar: string; name: string }>,
-              ];
-              
-              const totalRiders = allRiders.length;
-              const displayRiders = allRiders.slice(0, 3);
-              const remainingCount = totalRiders > 3 ? totalRiders - 3 : 0;
-
-              if (totalRiders === 0) {
-                return <Navigation className="w-5 h-5 text-muted-foreground" />;
-              }
-
-              return (
-                <div className="flex items-center -space-x-2">
-                  {displayRiders.map((rider, index) => (
-                    <div
-                      key={rider.id}
-                      className="relative"
-                      style={{ zIndex: 3 - index }}
-                    >
-                      <img
-                        src={rider.avatar}
-                        alt={rider.name}
-                        className="w-8 h-8 rounded-full border-2 border-card ring-2 ring-green-500"
-                      />
-                      {/* Indicador online */}
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
-                    </div>
-                  ))}
-                  {remainingCount > 0 && (
-                    <div className="relative">
-                      <div className="w-8 h-8 rounded-full bg-secondary border-2 border-card ring-2 ring-green-500 flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-primary">+{remainingCount}</span>
-                      </div>
-                      {/* Indicador online */}
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            </motion.button>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              style={{
-                position: 'fixed',
-                bottom: '80px', // Acima da barra de navegação (64px + 16px de margem)
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-              }}
-              className="bg-card rounded-2xl border border-border p-4 shadow-xl min-w-[300px] max-w-[90vw]"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Navigation className="w-4 h-4 text-primary" />
-                  Pilotos Próximos
-                </h3>
-                <button
-                  onClick={() => setShowNearbyRiders(false)}
-                  className="p-1 rounded-full hover:bg-secondary transition-colors"
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-              
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-                {/* Riders do mock data */}
-                {onlineRiders.map((rider) => (
-                  <button
-                    key={rider.id}
-                    onClick={() => {
-                      setSelectedRider(rider);
-                      setShowNearbyRiders(false);
-                    }}
-                    className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
-                  >
-                    <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full" />
-                    <div className="text-left">
-                      <p className="text-xs font-medium">{rider.name.split(' ')[0]}</p>
-                      <p className="text-[10px] text-primary">{rider.speed} km/h</p>
-                    </div>
-                  </button>
-                ))}
-                
-                {/* Riders do banco de dados */}
-                {onlineLocations.map((location) => {
-                  const profile = onlineRidersProfiles.get(location.user_id);
-                  if (!profile) return null;
-                  
-                  return (
-                    <button
-                      key={location.id}
-                      onClick={() => {
-                        setSelectedRider({
-                          id: location.user_id,
-                          name: profile.name,
-                          avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-                          bike: profile.bike || undefined,
-                          speed: location.speed_kmh ? Math.round(location.speed_kmh) : undefined,
-                          level: profile.level,
-                          totalKm: profile.total_km,
-                          location: {
-                            lat: location.latitude,
-                            lng: location.longitude,
-                          },
-                        });
-                        setShowNearbyRiders(false);
-                      }}
-                      className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
-                    >
-                      <img
-                        src={profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
-                        alt={profile.name}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div className="text-left">
-                        <p className="text-xs font-medium">{profile.name.split(' ')[0]}</p>
-                        {location.speed_kmh && (
-                          <p className="text-[10px] text-primary">{Math.round(location.speed_kmh)} km/h</p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-                
-                {/* Mensagem quando não há pilotos */}
-                {(onlineRiders.length === 0 && onlineLocations.length === 0) && (
-                  <div className="flex items-center justify-center w-full py-4 text-muted-foreground text-sm">
-                    <p>Nenhum piloto próximo no momento</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
-      </AnimatePresence>
+      {/* Pilotos Próximos removido - agora é um componente global em Index.tsx */}
 
       {/* Rider Detail Sheet */}
       <AnimatePresence>
