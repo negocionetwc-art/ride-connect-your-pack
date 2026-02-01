@@ -98,7 +98,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showNearbyRiders, setShowNearbyRiders] = useState(false);
-  const [buttonPosition, setButtonPosition] = useState({ x: 16, y: 0 }); // Posição inicial (left-4 = 16px)
+  const [buttonPosition, setButtonPosition] = useState<{ x: number; y: number } | null>(null); // Posição do botão (null = usar padrão)
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
