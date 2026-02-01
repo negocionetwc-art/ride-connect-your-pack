@@ -15,6 +15,7 @@ const Index = () => {
   const [createPostType, setCreatePostType] = useState<'photo' | 'route' | 'live' | 'group'>('photo');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [isStoryOverlayOpen, setIsStoryOverlayOpen] = useState(false);
+  const [isRiderDetailOpen, setIsRiderDetailOpen] = useState(false);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -50,7 +51,7 @@ const Index = () => {
           />
         );
       case 'map':
-        return <LiveMap />;
+        return <LiveMap onRiderSelectChange={setIsRiderDetailOpen} />;
       case 'ride':
         return <RideTracker />;
       case 'groups':
@@ -67,8 +68,8 @@ const Index = () => {
     }
   };
 
-  // Ocultar BottomNav e FAB quando story overlay está aberto
-  const hideNavigation = isStoryOverlayOpen || showCreate;
+  // Ocultar BottomNav e FAB quando story overlay, create ou rider detail está aberto
+  const hideNavigation = isStoryOverlayOpen || showCreate || isRiderDetailOpen;
 
   return (
     <div className="min-h-screen bg-background">

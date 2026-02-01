@@ -90,7 +90,11 @@ function OwnLocationMarker({
 }
 
 
-export const LiveMap = () => {
+interface LiveMapProps {
+  onRiderSelectChange?: (isOpen: boolean) => void;
+}
+
+export const LiveMap = ({ onRiderSelectChange }: LiveMapProps = {}) => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showSOS, setShowSOS] = useState(false);
@@ -150,6 +154,11 @@ export const LiveMap = () => {
     
     checkOwnRider();
   }, [selectedRider]);
+
+  // Notificar componente pai quando selectedRider mudar
+  useEffect(() => {
+    onRiderSelectChange?.(!!selectedRider);
+  }, [selectedRider, onRiderSelectChange]);
 
   // Atualizar localização do mapa quando o usuário compartilhar
   useEffect(() => {
@@ -389,7 +398,7 @@ export const LiveMap = () => {
         </motion.button>
       </div>
 
-      {/* Pilotos Próximos - Ícone Expansível */}
+      {/* Pilotos Próximos - Ícone com Avatares */}
       <AnimatePresence>
         {!showNearbyRiders ? (
           <motion.button
@@ -398,14 +407,63 @@ export const LiveMap = () => {
             exit={{ scale: 0 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowNearbyRiders(true)}
-            className="absolute bottom-24 left-4 p-3 bg-card rounded-full shadow-xl border border-border z-[1000] flex items-center justify-center"
+            className="absolute bottom-24 left-4 p-2 bg-card rounded-full shadow-xl border border-border z-[1000] flex items-center justify-center"
           >
-            <Navigation className="w-5 h-5 text-primary" />
-            {(onlineRiders.length + onlineLocations.length) > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                {onlineRiders.length + onlineLocations.length}
-              </span>
-            )}
+            {(() => {
+              // Combinar todos os pilotos (mock + banco)
+              const allRiders = [
+                ...onlineRiders.map(rider => ({
+                  id: rider.id,
+                  avatar: rider.avatar,
+                  name: rider.name,
+                })),
+                ...onlineLocations.map(location => {
+                  const profile = onlineRidersProfiles.get(location.user_id);
+                  return profile ? {
+                    id: location.user_id,
+                    avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+                    name: profile.name,
+                  } : null;
+                }).filter(Boolean) as Array<{ id: string; avatar: string; name: string }>,
+              ];
+              
+              const totalRiders = allRiders.length;
+              const displayRiders = allRiders.slice(0, 3);
+              const remainingCount = totalRiders > 3 ? totalRiders - 3 : 0;
+
+              if (totalRiders === 0) {
+                return <Navigation className="w-5 h-5 text-muted-foreground" />;
+              }
+
+              return (
+                <div className="flex items-center -space-x-2">
+                  {displayRiders.map((rider, index) => (
+                    <div
+                      key={rider.id}
+                      className="relative"
+                      style={{ zIndex: 3 - index }}
+                    >
+                      <img
+                        src={rider.avatar}
+                        alt={rider.name}
+                        className="w-8 h-8 rounded-full border-2 border-card ring-2 ring-green-500"
+                      />
+                      {/* Indicador online */}
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
+                    </div>
+                  ))}
+                  {remainingCount > 0 && (
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-full bg-secondary border-2 border-card ring-2 ring-green-500 flex items-center justify-center">
+                        <span className="text-[10px] font-bold text-primary">+{remainingCount}</span>
+                      </div>
+                      {/* Indicador online */}
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </motion.button>
         ) : (
           <motion.div
