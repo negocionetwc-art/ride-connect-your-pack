@@ -98,8 +98,10 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showNearbyRiders, setShowNearbyRiders] = useState(false);
-  const [buttonPosition, setButtonPosition] = useState<{ x: number; y: number } | null>(null); // Posição do botão (null = usar padrão)
-  const [windowHeight, setWindowHeight] = useState(800); // Altura padrão
+  const [buttonPositionPercent, setButtonPositionPercent] = useState<{ x: number; y: number } | null>(null); // Posição em percentual (0-1)
+  const [buttonPixelPos, setButtonPixelPos] = useState({ x: 0, y: 0 }); // Posição em pixels para o drag
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
@@ -161,15 +163,28 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
     onRiderSelectChange?.(!!selectedRider);
   }, [selectedRider, onRiderSelectChange]);
 
-  // Obter altura da janela de forma segura
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setWindowHeight(window.innerHeight);
-      const handleResize = () => setWindowHeight(window.innerHeight);
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
+  // Converter percentual → px APENAS UMA VEZ (igual StoryDraggableText)
+  useLayoutEffect(() => {
+    if (!containerRef.current || !buttonRef.current) return;
+
+    const c = containerRef.current.getBoundingClientRect();
+    const b = buttonRef.current.getBoundingClientRect();
+
+    if (buttonPositionPercent) {
+      setButtonPixelPos({
+        x: buttonPositionPercent.x * c.width - b.width / 2,
+        y: buttonPositionPercent.y * c.height - b.height / 2,
+      });
+    } else {
+      // Posição padrão: left 16px, bottom 8rem (convertido para percentual)
+      const defaultX = 16 / c.width;
+      const defaultY = (c.height - 128) / c.height; // 8rem = 128px
+      setButtonPixelPos({
+        x: defaultX * c.width - b.width / 2,
+        y: defaultY * c.height - b.height / 2,
+      });
     }
-  }, []);
+  }, [buttonPositionPercent]);
 
   // Atualizar localização do mapa quando o usuário compartilhar
   useEffect(() => {
@@ -230,9 +245,9 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   }, []);
 
   return (
-    <div className="min-h-screen pb-20 relative">
+    <div ref={containerRef} className="fixed inset-0 flex flex-col" style={{ height: '100vh' }}>
       {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-border/30">
+      <header className="sticky top-0 z-40 glass border-b border-border/30 flex-shrink-0">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-primary animate-pulse" />
@@ -272,16 +287,16 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
       </header>
 
       {/* Map Container */}
-      <div className="relative h-[calc(100vh-180px)] bg-secondary overflow-hidden">
+      <div className="relative flex-1 bg-secondary overflow-hidden">
         <MapContainer
           center={userLocation}
           zoom={13}
           style={{ height: '100%', width: '100%', zIndex: 0 }}
           zoomControl={true}
+          attributionControl={false}
         >
           {/* Tiles escuros - CartoDB Dark Matter */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             subdomains="abcd"
             maxZoom={19}
@@ -394,22 +409,34 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
       {/* Pilotos Próximos - Ícone com Avatares (Arrastável) */}
       <AnimatePresence>
         <motion.div
+          ref={buttonRef}
           drag
           dragMomentum={false}
-          dragElastic={0.1}
-          onDragEnd={(_, info) => {
-            // Salvar posição relativa ao viewport
-            setButtonPosition({ x: info.point.x, y: info.point.y });
-          }}
+          dragElastic={0.15}
           style={{
             position: 'fixed',
-            left: buttonPosition ? `${buttonPosition.x}px` : '16px',
-            bottom: showNearbyRiders ? 'auto' : (buttonPosition ? 'auto' : '8rem'),
-            top: showNearbyRiders ? (buttonPosition ? `${buttonPosition.y}px` : `${windowHeight - 200}px`) : (buttonPosition ? `${buttonPosition.y}px` : 'auto'),
+            x: buttonPixelPos.x,
+            y: buttonPixelPos.y,
             zIndex: showNearbyRiders ? 1001 : 1000,
-            transform: showNearbyRiders && buttonPosition ? 'translate(-50%, -100%)' : 'none',
           }}
-          className="cursor-move"
+          onDragEnd={(_, info) => {
+            if (!containerRef.current || !buttonRef.current) return;
+
+            const c = containerRef.current.getBoundingClientRect();
+            const b = buttonRef.current.getBoundingClientRect();
+
+            const newX = info.point.x - c.left - b.width / 2;
+            const newY = info.point.y - c.top - b.height / 2;
+
+            setButtonPixelPos({ x: newX, y: newY });
+
+            // Salvar em percentual
+            setButtonPositionPercent({
+              x: Math.min(Math.max((newX + b.width / 2) / c.width, 0), 1),
+              y: Math.min(Math.max((newY + b.height / 2) / c.height, 0), 1),
+            });
+          }}
+          className="absolute cursor-move select-none touch-none"
         >
           {!showNearbyRiders ? (
             <motion.button
@@ -481,6 +508,13 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
+              style={{
+                position: 'fixed',
+                bottom: '80px', // Acima da barra de navegação (64px + 16px de margem)
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 1000,
+              }}
               className="bg-card rounded-2xl border border-border p-4 shadow-xl min-w-[300px] max-w-[90vw]"
             >
               <div className="flex items-center justify-between mb-3">

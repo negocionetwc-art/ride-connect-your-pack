@@ -70,15 +70,17 @@ const Index = () => {
 
   // Ocultar BottomNav e FAB quando story overlay, create ou rider detail está aberto
   const hideNavigation = isStoryOverlayOpen || showCreate || isRiderDetailOpen;
+  // Ocultar FAB na página do mapa
+  const hideFAB = hideNavigation || activeTab === 'map';
 
   return (
     <div className="min-h-screen bg-background">
       {renderContent()}
       {!hideNavigation && (
-        <>
-          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-          <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
-        </>
+        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+      )}
+      {!hideFAB && (
+        <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
       )}
       
       <AnimatePresence>
