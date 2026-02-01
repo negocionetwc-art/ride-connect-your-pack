@@ -185,7 +185,7 @@ export const NearbyRidersButton = ({ onRiderSelect }: NearbyRidersButtonProps) =
                       <img
                         src={rider.avatar}
                         alt={rider.name}
-                        className="w-8 h-8 rounded-full border-2 border-card ring-2 ring-green-500 object-cover"
+                        className="w-8 h-8 rounded-full border-2 border-card ring-2 ring-green-500 object-cover aspect-square"
                       />
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
                     </div>
@@ -245,7 +245,7 @@ export const NearbyRidersButton = ({ onRiderSelect }: NearbyRidersButtonProps) =
                     })}
                     className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
                   >
-                    <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full object-cover" />
+                    <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full object-cover aspect-square" />
                     <div className="text-left">
                       <p className="text-xs font-medium">{rider.name.split(' ')[0]}</p>
                       <p className="text-[10px] text-primary">{rider.speed} km/h</p>
@@ -279,7 +279,7 @@ export const NearbyRidersButton = ({ onRiderSelect }: NearbyRidersButtonProps) =
                       <img
                         src={profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
                         alt={profile.name}
-                        className="w-8 h-8 rounded-full"
+                        className="w-8 h-8 rounded-full object-cover aspect-square"
                       />
                       <div className="text-left">
                         <p className="text-xs font-medium">{profile.name.split(' ')[0]}</p>
