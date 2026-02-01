@@ -1,13 +1,31 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MoreVertical, Trash2 } from 'lucide-react';
 import { StoryProgress } from './StoryProgress';
 import { StoryImageLoader, StoryVideoLoader } from './StoryImageLoader';
 import { StoryInteractions } from './StoryInteractions';
 import { useStoryView } from '@/hooks/useStoryView';
 import { useStoryPreloader } from '@/hooks/useStoryPreloader';
 import { useStoryMediaGate } from '@/hooks/useStoryMediaGate';
+import { useDeleteStory } from '@/hooks/useDeleteStory';
 import { StoryViewerBackground } from './StoryViewerBackground';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { UserStories } from '@/hooks/useStories';
 
 interface StoryViewerProps {
@@ -33,6 +51,8 @@ export function StoryViewer({
   const [videoDuration, setVideoDuration] = useState(IMAGE_DURATION);
   const [isInteractionPaused, setIsInteractionPaused] = useState(false);
   const [isLayoutStable, setIsLayoutStable] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -40,6 +60,24 @@ export function StoryViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const { mutate: markAsViewed } = useStoryView();
   const { preloadUserStories } = useStoryPreloader(userStories);
+  const deleteStoryMutation = useDeleteStory();
+
+  // Obter ID do usuário atual
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id || null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Memoize current story data para evitar re-renders
   const currentUser = useMemo(() => userStories[currentUserIndex], [userStories, currentUserIndex]);
@@ -257,6 +295,38 @@ export function StoryViewer({
     setIsInteractionPaused(false);
   }, []);
 
+  // Verificar se é o próprio story
+  const isOwnStory = useMemo(() => {
+    return currentStory?.user_id === currentUserId;
+  }, [currentStory?.user_id, currentUserId]);
+
+  // Handler para excluir story
+  const handleDeleteStory = useCallback(() => {
+    if (!currentStory) return;
+    
+    deleteStoryMutation.mutate(
+      { storyId: currentStory.id },
+      {
+        onSuccess: () => {
+          setShowDeleteDialog(false);
+          // Se houver mais stories, ir para o próximo, senão fechar
+          if (currentStories.length > 1) {
+            if (currentStoryIndex < currentStories.length - 1) {
+              setCurrentStoryIndex(prev => prev + 1);
+            } else if (currentStoryIndex > 0) {
+              setCurrentStoryIndex(prev => prev - 1);
+            } else {
+              onClose();
+            }
+          } else {
+            // Se era o último story do usuário, fechar
+            onClose();
+          }
+        },
+      }
+    );
+  }, [currentStory, currentStories.length, currentStoryIndex, deleteStoryMutation, onClose]);
+
   if (!currentStory || !currentUser) {
     return null;
   }
@@ -308,15 +378,43 @@ export function StoryViewer({
                 <p className="text-white/70 text-xs">@{currentUser.profile.username}</p>
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Menu de opções para próprio story */}
+              {isOwnStory && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
+                    >
+                      <MoreVertical className="w-5 h-5 text-white" />
+                    </motion.button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-card/95 backdrop-blur-sm">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeleteDialog(true);
+                      }}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir story
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
 
           {/* Mídia - container fixo para evitar layout shift */}
@@ -378,6 +476,33 @@ export function StoryViewer({
           </button>
         </div>
       </motion.div>
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir story?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O story será excluído permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteStory();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteStoryMutation.isPending}
+            >
+              {deleteStoryMutation.isPending ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AnimatePresence>
   );
 }
