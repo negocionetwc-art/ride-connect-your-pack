@@ -16,19 +16,30 @@ const options = [
 export const FloatingActionButton = ({ onOptionSelect }: FloatingActionButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleOptionClick = (optionId: 'photo' | 'route' | 'live' | 'group') => {
-    console.log('FAB: Option clicked:', optionId);
+  const handleMainClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔥 FAB: Main button clicked! Current state:', isOpen);
+    setIsOpen(!isOpen);
+  };
+
+  const handleOptionClick = (e: React.MouseEvent, optionId: 'photo' | 'route' | 'live' | 'group') => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('✅ FAB: Option clicked:', optionId);
     onOptionSelect(optionId);
     setIsOpen(false);
   };
 
-  const handleMainButtonClick = () => {
-    console.log('FAB: Main button clicked, isOpen:', isOpen);
-    setIsOpen(!isOpen);
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔙 FAB: Backdrop clicked');
+    setIsOpen(false);
   };
 
   return (
-    <>
+    <div className="fixed bottom-20 right-6 z-[60]">
       {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
@@ -36,119 +47,86 @@ export const FloatingActionButton = ({ onOptionSelect }: FloatingActionButtonPro
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsOpen(false)}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={handleBackdropClick}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm -z-10"
+            style={{ margin: '-80px -24px' }}
           />
         )}
       </AnimatePresence>
 
-      {/* FAB Container */}
-      <div className="fixed bottom-20 right-6 z-50">
-        {/* Options Menu */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="absolute bottom-20 right-0 flex flex-col gap-3 mb-3"
-            >
-              {options.map((option) => {
-                const Icon = option.icon;
-                return (
-                  <motion.button
-                    key={option.id}
-                    initial={{ opacity: 0, y: 20, scale: 0.8 }}
+      {/* Options Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <div className="absolute bottom-20 right-0 flex flex-col gap-3 mb-3">
+            {options.map((option) => {
+              const Icon = option.icon;
+              return (
+                <motion.button
+                  key={option.id}
+                  type="button"
+                  initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: 0, 
+                    scale: 1,
+                    transition: { delay: option.delay }
+                  }}
+                  exit={{ opacity: 0, y: 10, scale: 0.8 }}
+                  onClick={(e) => handleOptionClick(e, option.id as any)}
+                  className="flex items-center gap-3 cursor-pointer relative z-[70]"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {/* Label */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 10 }}
                     animate={{ 
                       opacity: 1, 
-                      y: 0, 
-                      scale: 1,
-                      transition: { delay: option.delay }
+                      x: 0,
+                      transition: { delay: option.delay + 0.1 }
                     }}
-                    exit={{ opacity: 0, y: 10, scale: 0.8 }}
-                    onClick={() => handleOptionClick(option.id as any)}
-                    className="flex items-center gap-3 group"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    className="px-3 py-2 bg-card rounded-lg shadow-xl border border-border whitespace-nowrap pointer-events-none"
                   >
-                    {/* Label */}
-                    <motion.div
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ 
-                        opacity: 1, 
-                        x: 0,
-                        transition: { delay: option.delay + 0.1 }
-                      }}
-                      className="px-3 py-2 bg-card rounded-lg shadow-lg border border-border whitespace-nowrap"
-                    >
-                      <span className="text-sm font-medium">{option.label}</span>
-                    </motion.div>
+                    <span className="text-sm font-medium">{option.label}</span>
+                  </motion.div>
 
-                    {/* Icon Button */}
-                    <div className={`p-3 rounded-full bg-gradient-to-br ${option.color} shadow-lg`}>
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  {/* Icon Button */}
+                  <div className={`p-3 rounded-full bg-gradient-to-br ${option.color} shadow-xl pointer-events-none`}>
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+      </AnimatePresence>
 
-        {/* Main FAB Button */}
-        <motion.button
-          onClick={handleMainButtonClick}
-          className={`relative p-4 rounded-full shadow-2xl transition-all duration-300 ${
-            isOpen 
-              ? 'bg-gradient-to-br from-red-500 to-red-600 rotate-45' 
-              : 'bg-gradient-to-br from-primary to-orange-600 glow'
-          }`}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          animate={{ 
-            rotate: isOpen ? 45 : 0,
-          }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        >
-          <AnimatePresence mode="wait">
-            {isOpen ? (
-              <motion.div
-                key="close"
-                initial={{ opacity: 0, rotate: -45 }}
-                animate={{ opacity: 1, rotate: 0 }}
-                exit={{ opacity: 0, rotate: 45 }}
-              >
-                <X className="w-6 h-6 text-white" />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="plus"
-                initial={{ opacity: 0, rotate: -45 }}
-                animate={{ opacity: 1, rotate: 0 }}
-                exit={{ opacity: 0, rotate: 45 }}
-              >
-                <Plus className="w-6 h-6 text-white" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.button>
-
+      {/* Main FAB Button */}
+      <button
+        type="button"
+        onClick={handleMainClick}
+        className={`relative p-4 rounded-full shadow-2xl transition-all duration-300 cursor-pointer z-[70] ${
+          isOpen 
+            ? 'bg-gradient-to-br from-red-500 to-red-600' 
+            : 'bg-gradient-to-br from-primary to-orange-600'
+        }`}
+        style={{ 
+          transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+          transition: 'transform 0.3s ease'
+        }}
+      >
+        {isOpen ? (
+          <X className="w-6 h-6 text-white" style={{ transform: 'rotate(-45deg)' }} />
+        ) : (
+          <Plus className="w-6 h-6 text-white" />
+        )}
+        
         {/* Ripple Effect */}
         {!isOpen && (
-          <motion.div
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-primary to-orange-600 opacity-30"
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.3, 0, 0.3],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
+          <span className="absolute inset-0 rounded-full bg-gradient-to-br from-primary to-orange-600 opacity-30 animate-ping" 
+                style={{ animationDuration: '2s' }} />
         )}
-      </div>
-    </>
+      </button>
+    </div>
   );
 };

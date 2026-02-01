@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Camera, MapPin, Route, Clock, Zap, X } from 'lucide-react';
+import { Play, Square, Camera, MapPin, Route, Clock, Zap, X, Signal } from 'lucide-react';
 import { useRideTracking } from '@/hooks/useRideTracking';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -21,6 +21,9 @@ export const RideTracker = ({ onComplete }: RideTrackerProps) => {
     currentDistance,
     elapsedTime,
     currentSpeed,
+    currentAccuracy,
+    averageSpeed,
+    maxSpeed,
     photos,
     startRide,
     addPhoto,
@@ -212,12 +215,26 @@ export const RideTracker = ({ onComplete }: RideTrackerProps) => {
             <motion.div
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
-              className="text-center"
+              className="text-center space-y-2"
             >
               <p className="text-sm text-muted-foreground mb-1">Distância</p>
               <p className="text-5xl font-bold text-primary">
                 {formatDistance(currentDistance)}
               </p>
+              
+              {/* Indicador de Qualidade do GPS */}
+              {currentAccuracy > 0 && (
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <Signal className={`w-4 h-4 ${
+                    currentAccuracy < 15 ? 'text-green-500' :
+                    currentAccuracy < 30 ? 'text-yellow-500' :
+                    'text-red-500'
+                  }`} />
+                  <span className="text-xs text-muted-foreground">
+                    GPS: ±{Math.round(currentAccuracy)}m
+                  </span>
+                </div>
+              )}
             </motion.div>
 
             {/* Grid de métricas */}
@@ -240,7 +257,29 @@ export const RideTracker = ({ onComplete }: RideTrackerProps) => {
               >
                 <Zap className="w-5 h-5 mx-auto text-primary mb-2" />
                 <p className="text-2xl font-bold">{Math.round(currentSpeed)}</p>
-                <p className="text-xs text-muted-foreground">km/h</p>
+                <p className="text-xs text-muted-foreground">km/h atual</p>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="p-4 bg-card rounded-xl border border-border/50 text-center"
+              >
+                <Route className="w-5 h-5 mx-auto text-primary mb-2" />
+                <p className="text-2xl font-bold">{Math.round(averageSpeed)}</p>
+                <p className="text-xs text-muted-foreground">km/h média</p>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="p-4 bg-card rounded-xl border border-border/50 text-center"
+              >
+                <Zap className="w-5 h-5 mx-auto text-orange-500 mb-2" />
+                <p className="text-2xl font-bold">{Math.round(maxSpeed)}</p>
+                <p className="text-xs text-muted-foreground">km/h máxima</p>
               </motion.div>
             </div>
 

@@ -7,11 +7,24 @@ import { toast } from '@/hooks/use-toast';
 type Ride = Database['public']['Tables']['rides']['Row'];
 type RideInsert = Database['public']['Tables']['rides']['Insert'];
 
+// Configurações de precisão GPS (similar ao Google Maps/Waze)
+const GPS_CONFIG = {
+  MIN_ACCURACY: 50,              // metros - rejeitar se pior que isso
+  MIN_DISTANCE: 0.005,           // km (5m) - movimento mínimo detectável
+  MAX_ACCELERATION: 50,          // km/h/s - aceleração máxima aceitável
+  SPEED_SMOOTHING: 0.7,          // fator de suavização (0-1)
+  UPDATE_INTERVAL: 1000,         // ms - frequência de atualização
+  MAX_BAD_READINGS: 10,          // máximo de leituras ruins consecutivas
+  TIMEOUT: 5000,                 // ms - timeout para getCurrentPosition
+  MAXIMUM_AGE: 1000,             // ms - idade máxima do cache GPS
+};
+
 interface RoutePoint {
   lat: number;
   lng: number;
   timestamp: string;
   speed?: number;
+  accuracy?: number;  // precisão em metros
 }
 
 interface RideTrackingState {
@@ -20,6 +33,9 @@ interface RideTrackingState {
   currentDistance: number; // em km
   elapsedTime: number; // em segundos
   currentSpeed: number; // em km/h
+  currentAccuracy: number; // precisão atual em metros
+  averageSpeed: number; // velocidade média
+  maxSpeed: number; // velocidade máxima
   routePoints: RoutePoint[];
   photos: string[];
 }
@@ -32,6 +48,9 @@ export function useRideTracking() {
     currentDistance: 0,
     elapsedTime: 0,
     currentSpeed: 0,
+    currentAccuracy: 0,
+    averageSpeed: 0,
+    maxSpeed: 0,
     routePoints: [],
     photos: [],
   });
@@ -40,7 +59,10 @@ export function useRideTracking() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastTimeRef = useRef<number | null>(null);
+  const lastSpeedRef = useRef<number>(0);
   const distanceAccumulatorRef = useRef<number>(0);
+  const consecutiveBadReadingsRef = useRef<number>(0);
 
   // Carregar rolê em andamento ao montar
   useEffect(() => {
@@ -62,12 +84,30 @@ export function useRideTracking() {
           const routePoints = (data.route_points as RoutePoint[]) || [];
           const photos = (data.photos as string[]) || [];
           
+          // Calcular velocidade média e máxima dos pontos existentes
+          let totalSpeed = 0;
+          let maxSpeed = 0;
+          let speedCount = 0;
+          
+          routePoints.forEach(point => {
+            if (point.speed && point.speed > 0) {
+              totalSpeed += point.speed;
+              speedCount++;
+              if (point.speed > maxSpeed) maxSpeed = point.speed;
+            }
+          });
+          
+          const averageSpeed = speedCount > 0 ? totalSpeed / speedCount : 0;
+          
           setState({
             currentRide: data,
             isTracking: true,
             currentDistance: data.distance_km || 0,
             elapsedTime: data.duration_minutes ? data.duration_minutes * 60 : 0,
             currentSpeed: 0,
+            currentAccuracy: 0,
+            averageSpeed,
+            maxSpeed,
             routePoints,
             photos,
           });
@@ -81,10 +121,13 @@ export function useRideTracking() {
           distanceAccumulatorRef.current = data.distance_km || 0;
           
           if (routePoints.length > 0) {
+            const lastPoint = routePoints[routePoints.length - 1];
             lastPositionRef.current = {
-              lat: routePoints[routePoints.length - 1].lat,
-              lng: routePoints[routePoints.length - 1].lng,
+              lat: lastPoint.lat,
+              lng: lastPoint.lng,
             };
+            lastTimeRef.current = new Date(lastPoint.timestamp).getTime();
+            lastSpeedRef.current = lastPoint.speed || 0;
           }
 
           // Continuar rastreamento
@@ -139,32 +182,108 @@ export function useRideTracking() {
     const updateLocation = async (position: GeolocationPosition) => {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
-      const speed = position.coords.speed ? position.coords.speed * 3.6 : 0; // m/s para km/h
+      const accuracy = position.coords.accuracy;
       const timestamp = new Date().toISOString();
+      const now = Date.now();
 
-      const routePoint: RoutePoint = { lat, lng, timestamp, speed };
+      // ✅ VALIDAÇÃO 1: Rejeitar GPS impreciso (> 50m)
+      if (accuracy > GPS_CONFIG.MIN_ACCURACY) {
+        console.warn(`GPS impreciso: ±${accuracy.toFixed(0)}m - ignorando`);
+        consecutiveBadReadingsRef.current++;
+        
+        // Alertar usuário se GPS ruim por muito tempo
+        if (consecutiveBadReadingsRef.current >= GPS_CONFIG.MAX_BAD_READINGS) {
+          toast({
+            title: 'GPS instável ⚠️',
+            description: 'Sinal GPS ruim. Tente ir para área aberta.',
+            variant: 'destructive',
+          });
+          consecutiveBadReadingsRef.current = 0; // Reset para não spammar
+        }
+        return;
+      }
+      
+      consecutiveBadReadingsRef.current = 0; // Reset ao receber leitura boa
+
+      // ✅ VALIDAÇÃO 2: Calcular distância e verificar se é movimento real
+      let distance = 0;
+      let shouldUpdate = false;
+      
+      if (lastPositionRef.current && lastTimeRef.current) {
+        distance = calculateDistance(
+          lastPositionRef.current.lat,
+          lastPositionRef.current.lng,
+          lat,
+          lng
+        );
+        
+        // Filtrar GPS drift (movimentos < 5m)
+        if (distance >= GPS_CONFIG.MIN_DISTANCE) {
+          shouldUpdate = true;
+        } else {
+          console.log(`Movimento muito pequeno (${(distance * 1000).toFixed(1)}m) - ignorando drift`);
+          return; // Não atualizar para movimentos muito pequenos
+        }
+      } else {
+        // Primeira posição sempre atualiza
+        shouldUpdate = true;
+      }
+
+      if (!shouldUpdate) return;
+
+      // ✅ VALIDAÇÃO 3: Calcular e validar velocidade
+      let speed = position.coords.speed ? position.coords.speed * 3.6 : 0; // m/s para km/h
+      
+      // Calcular velocidade manualmente se GPS não forneceu
+      if (speed === 0 && lastPositionRef.current && lastTimeRef.current && distance > 0) {
+        const timeDiff = (now - lastTimeRef.current) / 1000 / 3600; // em horas
+        if (timeDiff > 0) {
+          speed = distance / timeDiff; // km/h
+          console.log(`Velocidade calculada manualmente: ${speed.toFixed(1)} km/h`);
+        }
+      }
+      
+      // ✅ VALIDAÇÃO 4: Filtrar picos irreais de velocidade
+      if (lastSpeedRef.current > 0 && lastTimeRef.current) {
+        const timeDiff = (now - lastTimeRef.current) / 1000; // em segundos
+        const maxSpeedChange = GPS_CONFIG.MAX_ACCELERATION * timeDiff;
+        
+        if (Math.abs(speed - lastSpeedRef.current) > maxSpeedChange) {
+          console.warn(`Velocidade irreal: ${lastSpeedRef.current.toFixed(1)} → ${speed.toFixed(1)} km/h - suavizando`);
+          // Limitar mudança de velocidade
+          speed = lastSpeedRef.current + (speed > lastSpeedRef.current ? maxSpeedChange : -maxSpeedChange);
+        }
+      }
+      
+      // ✅ VALIDAÇÃO 5: Suavizar velocidade (filtro média móvel exponencial)
+      const smoothedSpeed = lastSpeedRef.current > 0
+        ? lastSpeedRef.current * GPS_CONFIG.SPEED_SMOOTHING + speed * (1 - GPS_CONFIG.SPEED_SMOOTHING)
+        : speed;
+
+      const routePoint: RoutePoint = { 
+        lat, 
+        lng, 
+        timestamp, 
+        speed: smoothedSpeed,
+        accuracy 
+      };
 
       setState((prev) => {
-        let newDistance = prev.currentDistance;
-        
-        // Calcular distância incremental
-        if (lastPositionRef.current) {
-          const distance = calculateDistance(
-            lastPositionRef.current.lat,
-            lastPositionRef.current.lng,
-            lat,
-            lng
-          );
-          newDistance = prev.currentDistance + distance;
-          distanceAccumulatorRef.current = newDistance;
-        }
+        const newDistance = prev.currentDistance + distance;
+        distanceAccumulatorRef.current = newDistance;
 
         const newRoutePoints = [...prev.routePoints, routePoint];
         const elapsed = startTimeRef.current 
           ? Math.floor((Date.now() - startTimeRef.current) / 1000)
           : prev.elapsedTime;
 
-        // Atualizar no banco a cada 10 pontos ou 30 segundos
+        // Calcular velocidade média e máxima
+        const totalSpeed = newRoutePoints.reduce((sum, p) => sum + (p.speed || 0), 0);
+        const speedCount = newRoutePoints.filter(p => p.speed && p.speed > 0).length;
+        const newAverageSpeed = speedCount > 0 ? totalSpeed / speedCount : 0;
+        const newMaxSpeed = Math.max(prev.maxSpeed, smoothedSpeed);
+
+        // Atualizar no banco a cada 10 pontos
         if (newRoutePoints.length % 10 === 0) {
           updateRideInDatabase(rideId, {
             distance_km: newDistance,
@@ -177,24 +296,34 @@ export function useRideTracking() {
           ...prev,
           currentDistance: newDistance,
           elapsedTime: elapsed,
-          currentSpeed: speed,
+          currentSpeed: smoothedSpeed,
+          currentAccuracy: accuracy,
+          averageSpeed: newAverageSpeed,
+          maxSpeed: newMaxSpeed,
           routePoints: newRoutePoints,
         };
       });
 
       lastPositionRef.current = { lat, lng };
+      lastTimeRef.current = now;
+      lastSpeedRef.current = smoothedSpeed;
     };
 
-    // Watch position
+    // Watch position com configurações otimizadas
     watchIdRef.current = navigator.geolocation.watchPosition(
       updateLocation,
       (err) => {
         console.error('Erro no rastreamento GPS:', err);
+        toast({
+          title: 'Erro GPS',
+          description: 'Não foi possível obter localização. Verifique se GPS está ativo.',
+          variant: 'destructive',
+        });
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        timeout: GPS_CONFIG.TIMEOUT,
+        maximumAge: GPS_CONFIG.MAXIMUM_AGE,
       }
     );
 
@@ -205,7 +334,7 @@ export function useRideTracking() {
         const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
         return { ...prev, elapsedTime: elapsed };
       });
-    }, 1000);
+    }, GPS_CONFIG.UPDATE_INTERVAL);
   }, [updateRideInDatabase]);
 
   // Mutation: Iniciar rolê
@@ -218,9 +347,14 @@ export function useRideTracking() {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: GPS_CONFIG.TIMEOUT,
         });
       });
+
+      // Verificar precisão inicial
+      if (position.coords.accuracy > GPS_CONFIG.MIN_ACCURACY) {
+        throw new Error(`GPS impreciso (±${position.coords.accuracy.toFixed(0)}m). Tente em área aberta.`);
+      }
 
       const startLocation = `${position.coords.latitude}, ${position.coords.longitude}`;
       const initialRoutePoint: RoutePoint = {
@@ -228,6 +362,7 @@ export function useRideTracking() {
         lng: position.coords.longitude,
         timestamp: new Date().toISOString(),
         speed: position.coords.speed ? position.coords.speed * 3.6 : 0,
+        accuracy: position.coords.accuracy,
       };
 
       const { data, error } = await supabase
@@ -252,7 +387,10 @@ export function useRideTracking() {
         lat: (data.route_points as RoutePoint[])[0]?.lat || 0,
         lng: (data.route_points as RoutePoint[])[0]?.lng || 0,
       };
+      lastTimeRef.current = Date.now();
+      lastSpeedRef.current = 0;
       distanceAccumulatorRef.current = 0;
+      consecutiveBadReadingsRef.current = 0;
 
       setState({
         currentRide: data,
@@ -260,6 +398,9 @@ export function useRideTracking() {
         currentDistance: 0,
         elapsedTime: 0,
         currentSpeed: 0,
+        currentAccuracy: (data.route_points as RoutePoint[])[0]?.accuracy || 0,
+        averageSpeed: 0,
+        maxSpeed: 0,
         routePoints: (data.route_points as RoutePoint[]) || [],
         photos: (data.photos as string[]) || [],
       });
@@ -316,7 +457,7 @@ export function useRideTracking() {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: GPS_CONFIG.TIMEOUT,
         });
       });
 
@@ -367,13 +508,19 @@ export function useRideTracking() {
         currentDistance: 0,
         elapsedTime: 0,
         currentSpeed: 0,
+        currentAccuracy: 0,
+        averageSpeed: 0,
+        maxSpeed: 0,
         routePoints: [],
         photos: [],
       });
 
       startTimeRef.current = null;
       lastPositionRef.current = null;
+      lastTimeRef.current = null;
+      lastSpeedRef.current = 0;
       distanceAccumulatorRef.current = 0;
+      consecutiveBadReadingsRef.current = 0;
 
       toast({
         title: 'Rolê finalizado! 🎉',
@@ -418,13 +565,19 @@ export function useRideTracking() {
         currentDistance: 0,
         elapsedTime: 0,
         currentSpeed: 0,
+        currentAccuracy: 0,
+        averageSpeed: 0,
+        maxSpeed: 0,
         routePoints: [],
         photos: [],
       });
 
       startTimeRef.current = null;
       lastPositionRef.current = null;
+      lastTimeRef.current = null;
+      lastSpeedRef.current = 0;
       distanceAccumulatorRef.current = 0;
+      consecutiveBadReadingsRef.current = 0;
 
       toast({
         title: 'Rolê cancelado',
@@ -459,6 +612,9 @@ export function useRideTracking() {
     currentDistance: state.currentDistance,
     elapsedTime: state.elapsedTime,
     currentSpeed: state.currentSpeed,
+    currentAccuracy: state.currentAccuracy,
+    averageSpeed: state.averageSpeed,
+    maxSpeed: state.maxSpeed,
     routePoints: state.routePoints,
     photos: state.photos,
 
