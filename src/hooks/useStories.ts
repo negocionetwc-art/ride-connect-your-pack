@@ -136,7 +136,7 @@ export function useStories() {
       });
 
       // Adicionar status de visualização aos stories
-      const storiesWithViews: StoryWithProfile[] = storiesData.map((story: any) => {
+      const storiesWithViews = storiesData.map((story: any) => {
         const profile = Array.isArray(story.profile) ? story.profile[0] : story.profile;
         const viewedAt = viewsMap.get(story.id);
         
@@ -147,15 +147,16 @@ export function useStories() {
         return {
           id: story.id,
           user_id: story.user_id,
+          image_url: story.image_url || mediaUrl, // Manter compatibilidade
           media_url: mediaUrl,
           media_type: mediaType as 'image' | 'video',
           created_at: story.created_at,
           expires_at: story.expires_at,
-          profile: profile as Profile,
+          profile: profile,
           is_viewed: !!viewedAt,
           viewed_at: viewedAt || null,
         };
-      });
+      }) as StoryWithProfile[];
 
       // Agrupar stories por usuário
       const storiesByUser = new Map<string, StoryWithProfile[]>();

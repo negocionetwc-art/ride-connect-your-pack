@@ -37,7 +37,8 @@ export function useConversations() {
         return [];
       }
 
-      const { data, error } = await supabase
+      // Tabela conversations pode não existir ainda
+      const { data, error } = await (supabase as any)
         .from('conversations')
         .select(`
           *,
@@ -52,12 +53,17 @@ export function useConversations() {
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (error) {
+        // Se tabela não existe, retornar array vazio
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          console.warn('Tabela conversations não existe ainda');
+          return [];
+        }
         console.error('Erro ao buscar conversas:', error);
         throw error;
       }
 
       // Processar dados para adicionar campos calculados
-      const conversations = (data || []).map(conv => {
+      const conversations = (data || []).map((conv: any) => {
         const isP1 = conv.participant_1_id === user.id;
         return {
           ...conv,
@@ -83,7 +89,7 @@ export function useGetOrCreateConversation() {
       }
 
       // Usar função do banco para obter ou criar conversa
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .rpc('get_or_create_conversation', {
           user1_id: user.id,
           user2_id: otherUserId
@@ -112,12 +118,16 @@ export function useTotalUnreadMessages() {
         return 0;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .rpc('get_total_unread_messages', {
           user_uuid: user.id
         });
 
       if (error) {
+        // Se função não existe, retornar 0
+        if (error.message?.includes('does not exist')) {
+          return 0;
+        }
         console.error('Erro ao contar mensagens não lidas:', error);
         return 0;
       }

@@ -170,7 +170,7 @@ export function AddStoryButton({ onStoryCreated }: AddStoryButtonProps) {
                   {isVideo && <Video className="w-4 h-4" />}
                   <span>{selectedFile?.name}</span>
                   <span className="text-xs">
-                    ({(selectedFile?.size || 0) / (1024 * 1024)).toFixed(2)} MB)
+                    ({((selectedFile?.size || 0) / (1024 * 1024)).toFixed(2)} MB)
                   </span>
                 </div>
               </div>
