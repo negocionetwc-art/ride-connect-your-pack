@@ -10,6 +10,7 @@ import { AuthPanel } from './profile/AuthPanel';
 import { SettingsSheet } from './profile/SettingsSheet';
 import { EditProfileDialog } from './profile/EditProfileDialog';
 import { AvatarUploadDialog } from './profile/AvatarUploadDialog';
+import { BikeImageUploadDialog } from './profile/BikeImageUploadDialog';
 import { BadgesOverlay } from './profile/BadgesOverlay';
 import { BadgeDetailDialog } from './profile/BadgeDetailDialog';
 import { RidesOverlay } from './profile/RidesOverlay';
@@ -26,6 +27,7 @@ export const Profile = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
+  const [showBikeImageUpload, setShowBikeImageUpload] = useState(false);
   const [showBadgesOverlay, setShowBadgesOverlay] = useState(false);
   const [showRidesOverlay, setShowRidesOverlay] = useState(false);
   const [showLevelDetail, setShowLevelDetail] = useState(false);
@@ -363,11 +365,17 @@ export const Profile = () => {
       <EditProfileDialog
         open={showEditProfile}
         onOpenChange={setShowEditProfile}
+        onEditBikeImage={() => setShowBikeImageUpload(true)}
       />
 
       <AvatarUploadDialog
         open={showAvatarUpload}
         onOpenChange={setShowAvatarUpload}
+      />
+
+      <BikeImageUploadDialog
+        open={showBikeImageUpload}
+        onOpenChange={setShowBikeImageUpload}
       />
 
       <BadgesOverlay
