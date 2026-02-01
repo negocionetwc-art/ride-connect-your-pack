@@ -460,6 +460,8 @@ export function StoryViewer({
               <StoryTextOverlay
                 text={currentStory.text}
                 position={currentStory.text_position}
+                color={currentStory.text_color}
+                bg={currentStory.text_bg}
               />
             </div>
           </div>

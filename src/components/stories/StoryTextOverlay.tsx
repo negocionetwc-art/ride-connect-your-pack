@@ -1,29 +1,33 @@
 interface StoryTextOverlayProps {
   text?: string;
   position?: 'top' | 'center' | 'bottom';
+  color?: string;
+  bg?: boolean;
 }
 
 export function StoryTextOverlay({
   text,
   position = 'center',
+  color = '#fff',
+  bg = false,
 }: StoryTextOverlayProps) {
   if (!text) return null;
 
   const positionClass = {
-    top: 'top-20',
+    top: 'top-24',
     center: 'top-1/2 -translate-y-1/2',
-    bottom: 'bottom-24',
+    bottom: 'bottom-28',
   }[position];
 
   return (
     <div
-      className={`absolute ${positionClass} left-0 right-0 px-6 text-center z-40`}
+      className={`absolute ${positionClass} left-0 right-0 z-40 px-6`}
     >
       <p
-        className="text-white text-xl font-semibold drop-shadow-lg break-words"
-        style={{
-          textShadow: '0 2px 8px rgba(0,0,0,0.6)',
-        }}
+        className={`text-xl font-semibold text-center break-words ${
+          bg ? 'bg-black/50 px-4 py-2 rounded-xl' : ''
+        }`}
+        style={{ color }}
       >
         {text}
       </p>

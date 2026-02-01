@@ -17,6 +17,8 @@ export type StoryWithProfile = Story & {
   viewed_at: string | null;
   text?: string;
   text_position?: 'top' | 'center' | 'bottom';
+  text_color?: string;
+  text_bg?: boolean;
 };
 
 export type UserStories = {
@@ -74,6 +76,8 @@ export function useStories() {
           image_url,
           text,
           text_position,
+          text_color,
+          text_bg,
           created_at,
           expires_at,
           profile:profiles!stories_user_id_fkey (
@@ -101,6 +105,8 @@ export function useStories() {
             image_url,
             text,
             text_position,
+            text_color,
+            text_bg,
             created_at,
             expires_at,
             profile:profiles!stories_user_id_fkey (
@@ -158,6 +164,8 @@ export function useStories() {
           media_type: mediaType as 'image' | 'video',
           text: story.text || undefined,
           text_position: story.text_position || undefined,
+          text_color: story.text_color || undefined,
+          text_bg: story.text_bg || undefined,
           created_at: story.created_at,
           expires_at: story.expires_at,
           profile: profile,
