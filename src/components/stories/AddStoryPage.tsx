@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Image as ImageIcon, Video, Check, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCreateStory } from '@/hooks/useCreateStory';
-import { StoryTextOverlay } from './StoryTextOverlay';
+import { StoryDraggableText } from './StoryDraggableText';
 
 interface AddStoryPageProps {
   isOpen: boolean;
@@ -24,7 +24,8 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [storyText, setStoryText] = useState<string>('');
-  const [textYPercent, setTextYPercent] = useState<number>(50); // Posição Y inicial (50% = centro)
+  const [textXPercent, setTextXPercent] = useState<number>(0.5); // Posição X inicial (0.5 = centro)
+  const [textYPercent, setTextYPercent] = useState<number>(0.5); // Posição Y inicial (0.5 = centro)
 
   // Reset state quando fechar
   useEffect(() => {
@@ -34,7 +35,8 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
       setUploadStatus('idle');
       setErrorMessage(null);
       setStoryText('');
-      setTextYPercent(50);
+      setTextXPercent(0.5);
+      setTextYPercent(0.5);
     }
   }, [isOpen]);
 
@@ -77,7 +79,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
       { 
         file: selectedFile,
         text: storyText.trim() || undefined,
-        text_position: 'center',
+        text_x_percent: storyText.trim() ? textXPercent : undefined,
         text_y_percent: storyText.trim() ? textYPercent : undefined,
         text_bg: storyText.trim() && storyText.trim().length > 12 ? true : undefined,
       },
@@ -104,7 +106,8 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
       setUploadStatus('idle');
       setErrorMessage(null);
       setStoryText('');
-      setTextYPercent(50);
+      setTextXPercent(0.5);
+      setTextYPercent(0.5);
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
     } else {
@@ -255,40 +258,17 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
 
                   {/* Texto arrastável sobre o preview */}
                   {uploadStatus === 'idle' && storyText.trim() && (
-                    <motion.div
-                      drag
-                      dragConstraints={{
-                        top: -50,
-                        bottom: 50,
-                        left: 0,
-                        right: 0,
+                    <StoryDraggableText
+                      text={storyText}
+                      color="#fff"
+                      bg={storyText.trim().length > 12}
+                      xPercent={textXPercent}
+                      yPercent={textYPercent}
+                      onPositionChange={(x, y) => {
+                        setTextXPercent(x);
+                        setTextYPercent(y);
                       }}
-                      dragElastic={0}
-                      onDragEnd={(_, info) => {
-                        // Calcular percentual Y baseado na posição final relativa ao container
-                        if (previewContainerRef.current) {
-                          const containerRect = previewContainerRef.current.getBoundingClientRect();
-                          const absoluteY = info.point.y;
-                          const relativeY = absoluteY - containerRect.top;
-                          const containerHeight = containerRect.height;
-                          const percent = Math.max(5, Math.min(95, (relativeY / containerHeight) * 100));
-                          setTextYPercent(percent);
-                        }
-                      }}
-                      className="absolute z-40 left-0 right-0"
-                      style={{
-                        top: `${textYPercent}%`,
-                        transform: 'translateY(-50%)',
-                      }}
-                    >
-                      <StoryTextOverlay
-                        text={storyText}
-                        position="center"
-                        color="#fff"
-                        bg={false}
-                        yPercent={textYPercent}
-                      />
-                    </motion.div>
+                    />
                   )}
 
                   {/* Overlay de status */}

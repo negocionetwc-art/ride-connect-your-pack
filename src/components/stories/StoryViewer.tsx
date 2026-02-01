@@ -9,7 +9,7 @@ import { useStoryPreloader } from '@/hooks/useStoryPreloader';
 import { useStoryMediaGate } from '@/hooks/useStoryMediaGate';
 import { useDeleteStory } from '@/hooks/useDeleteStory';
 import { StoryViewerBackground } from './StoryViewerBackground';
-import { StoryTextOverlay } from './StoryTextOverlay';
+import { StoryDraggableText } from './StoryDraggableText';
 import { StoryStickers } from './StoryStickers';
 import { useStoryViews } from '@/hooks/useStoryViews';
 import { supabase } from '@/integrations/supabase/client';
@@ -459,14 +459,16 @@ export function StoryViewer({
                 )}
               </div>
 
-              {/* Texto sobre o story */}
-              <StoryTextOverlay
-                text={currentStory.text}
-                position={currentStory.text_position}
-                color={currentStory.text_color}
-                bg={currentStory.text_bg}
-                yPercent={currentStory.text_y_percent}
-              />
+              {/* Texto arrastável sobre o story */}
+              {currentStory.text && (
+                <StoryDraggableText
+                  text={currentStory.text}
+                  color={currentStory.text_color}
+                  bg={currentStory.text_bg || currentStory.text.length > 12}
+                  xPercent={currentStory.text_x_percent ?? 0.5}
+                  yPercent={currentStory.text_y_percent ?? 0.5}
+                />
+              )}
 
               {/* Stickers (UPGRADE 5) */}
               {currentStory.stickers && (

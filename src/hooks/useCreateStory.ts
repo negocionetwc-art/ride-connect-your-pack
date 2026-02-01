@@ -8,7 +8,7 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB para imagens
 export interface CreateStoryData {
   file: File;
   text?: string;
-  text_position?: 'top' | 'center' | 'bottom';
+  text_x_percent?: number;
   text_y_percent?: number;
   text_bg?: boolean;
   stickers?: Array<{
@@ -108,7 +108,7 @@ export function useCreateStory() {
           // Manter image_url para compatibilidade (será preenchido automaticamente se necessário)
           image_url: isImage ? publicUrl : null,
           text: data.text || null,
-          text_position: data.text_position || null,
+          text_x_percent: data.text_x_percent || null,
           text_y_percent: data.text_y_percent || null,
           text_bg: data.text_bg || null,
           stickers: data.stickers ? JSON.stringify(data.stickers) : null,

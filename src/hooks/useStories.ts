@@ -16,9 +16,9 @@ export type StoryWithProfile = Story & {
   is_viewed: boolean;
   viewed_at: string | null;
   text?: string;
-  text_position?: 'top' | 'center' | 'bottom';
   text_color?: string;
   text_bg?: boolean;
+  text_x_percent?: number;
   text_y_percent?: number;
   stickers?: Array<{
     id: string;
@@ -85,9 +85,9 @@ export function useStories() {
           media_type,
           image_url,
           text,
-          text_position,
           text_color,
           text_bg,
+          text_x_percent,
           text_y_percent,
           stickers,
           highlight_id,
@@ -119,9 +119,9 @@ export function useStories() {
             user_id,
             image_url,
           text,
-          text_position,
           text_color,
           text_bg,
+          text_x_percent,
           text_y_percent,
           created_at,
             expires_at,
@@ -191,10 +191,10 @@ export function useStories() {
           media_url: mediaUrl,
           media_type: mediaType as 'image' | 'video',
           text: story.text || undefined,
-          text_position: story.text_position || undefined,
           text_color: story.text_color || undefined,
           text_bg: story.text_bg || undefined,
-          text_y_percent: story.text_y_percent || undefined,
+          text_x_percent: story.text_x_percent !== null && story.text_x_percent !== undefined ? Number(story.text_x_percent) : undefined,
+          text_y_percent: story.text_y_percent !== null && story.text_y_percent !== undefined ? Number(story.text_y_percent) : undefined,
           stickers: parsedStickers,
           highlight_id: story.highlight_id || undefined,
           is_sponsored: story.is_sponsored || undefined,
