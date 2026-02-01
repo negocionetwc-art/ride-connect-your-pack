@@ -393,10 +393,22 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
                 Cancelar
               </Button>
               <Button
-                onClick={handlePublish}
-                className="flex-1"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handlePublish();
+                }}
+                disabled={isPending || !selectedFile}
+                className="flex-1 bg-primary hover:bg-primary/90"
               >
-                Tentar Novamente
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Publicando...
+                  </>
+                ) : (
+                  'Tentar Novamente'
+                )}
               </Button>
             </div>
           </div>
