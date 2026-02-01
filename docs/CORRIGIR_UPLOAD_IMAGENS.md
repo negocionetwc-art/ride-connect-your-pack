@@ -20,7 +20,7 @@ O erro "Erro ao fazer upload da imagem" ocorre porque o **bucket `group-covers` 
 ```
 Name: group-covers
 Public bucket: ✅ MARQUE ESTA OPÇÃO
-File size limit: 5242880  (ou digite "5" e selecione "MB")
+File size limit: 5242880  (ou digite "50" e selecione "MB")
 Allowed MIME types: image/jpeg, image/png, image/webp, image/gif
 ```
 
@@ -95,7 +95,7 @@ Após esta atualização, o sistema agora:
 - ✓ Mostra feedback visual: "Nome disponível" ou "Nome já em uso"
 
 ### ✅ Validação de Upload
-- 📏 Tamanho máximo: **5MB**
+- 📏 Tamanho máximo: **50MB**
 - 🖼️ Formatos aceitos: **JPG, PNG, WEBP, GIF**
 - 🚫 Mensagens de erro específicas para cada problema
 - 🧹 Limpeza automática em caso de falha
