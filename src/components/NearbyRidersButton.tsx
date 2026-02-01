@@ -185,7 +185,7 @@ export const NearbyRidersButton = ({ onRiderSelect }: NearbyRidersButtonProps) =
                       <img
                         src={rider.avatar}
                         alt={rider.name}
-                        className="w-8 h-8 rounded-full border-2 border-card ring-2 ring-green-500"
+                        className="w-8 h-8 rounded-full border-2 border-card ring-2 ring-green-500 object-cover"
                       />
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full" />
                     </div>
@@ -245,7 +245,7 @@ export const NearbyRidersButton = ({ onRiderSelect }: NearbyRidersButtonProps) =
                     })}
                     className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
                   >
-                    <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full" />
+                    <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full object-cover" />
                     <div className="text-left">
                       <p className="text-xs font-medium">{rider.name.split(' ')[0]}</p>
                       <p className="text-[10px] text-primary">{rider.speed} km/h</p>

@@ -223,7 +223,7 @@ function RiderMarker({
             <img
               src={avatarUrl}
               alt={profile?.name || 'Rider'}
-              className="w-12 h-12 rounded-full mx-auto mb-2"
+              className="w-12 h-12 rounded-full mx-auto mb-2 object-cover"
             />
           )}
           <h3 className="font-semibold">{profile?.name || 'Rider Online'}</h3>
@@ -441,7 +441,7 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
                     <img
                       src={rider.avatar}
                       alt={rider.name}
-                      className="w-12 h-12 rounded-full mx-auto mb-2"
+                      className="w-12 h-12 rounded-full mx-auto mb-2 object-cover"
                     />
                     <h3 className="font-semibold">{rider.name}</h3>
                     <p className="text-xs text-primary">{rider.speed} km/h</p>
@@ -491,7 +491,7 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
                 <img
                   src={selectedRider.avatar}
                   alt={selectedRider.name}
-                  className="w-16 h-16 rounded-full ring-2 ring-primary"
+                  className="w-16 h-16 rounded-full ring-2 ring-primary object-cover"
                 />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-lg truncate">{selectedRider.name}</h3>
