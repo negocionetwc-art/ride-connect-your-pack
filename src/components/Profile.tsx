@@ -11,6 +11,7 @@ import { SettingsSheet } from './profile/SettingsSheet';
 import { EditProfileDialog } from './profile/EditProfileDialog';
 import { AvatarUploadDialog } from './profile/AvatarUploadDialog';
 import { BikeImageUploadDialog } from './profile/BikeImageUploadDialog';
+import { BikeImageViewer } from './profile/BikeImageViewer';
 import { BadgesOverlay } from './profile/BadgesOverlay';
 import { BadgeDetailDialog } from './profile/BadgeDetailDialog';
 import { RidesOverlay } from './profile/RidesOverlay';
@@ -28,6 +29,7 @@ export const Profile = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
   const [showBikeImageUpload, setShowBikeImageUpload] = useState(false);
+  const [showBikeImageViewer, setShowBikeImageViewer] = useState(false);
   const [showBadgesOverlay, setShowBadgesOverlay] = useState(false);
   const [showRidesOverlay, setShowRidesOverlay] = useState(false);
   const [showLevelDetail, setShowLevelDetail] = useState(false);
@@ -186,12 +188,29 @@ export const Profile = () => {
             {profile?.bike && (
               <motion.div
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setShowEditProfile(true)}
-                className="mt-4 p-4 bg-card rounded-xl border border-border/50 cursor-pointer"
+                className="mt-4 p-4 bg-card rounded-xl border border-border/50"
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-3xl">🏍️</div>
-                  <div>
+                  {/* Imagem da moto ou ícone */}
+                  {profile?.bike_image_url ? (
+                    <img
+                      src={profile.bike_image_url}
+                      alt={profile.bike}
+                      className="w-16 h-16 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setShowBikeImageViewer(true)}
+                    />
+                  ) : (
+                    <div 
+                      className="text-3xl cursor-pointer hover:scale-110 transition-transform"
+                      onClick={() => setShowEditProfile(true)}
+                    >
+                      🏍️
+                    </div>
+                  )}
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => setShowEditProfile(true)}
+                  >
                     <p className="font-semibold">{profile.bike}</p>
                     <p className="text-sm text-muted-foreground">
                       Minha companheira
@@ -377,6 +396,15 @@ export const Profile = () => {
         open={showBikeImageUpload}
         onOpenChange={setShowBikeImageUpload}
       />
+
+      {profile?.bike_image_url && (
+        <BikeImageViewer
+          open={showBikeImageViewer}
+          onOpenChange={setShowBikeImageViewer}
+          imageUrl={profile.bike_image_url}
+          bikeName={profile.bike || undefined}
+        />
+      )}
 
       <BadgesOverlay
         open={showBadgesOverlay}
