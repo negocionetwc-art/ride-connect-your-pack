@@ -6,6 +6,8 @@ import { StoryImageLoader, StoryVideoLoader } from './StoryImageLoader';
 import { StoryInteractions } from './StoryInteractions';
 import { useStoryView } from '@/hooks/useStoryView';
 import { useStoryPreloader } from '@/hooks/useStoryPreloader';
+import { useStoryMediaGate } from '@/hooks/useStoryMediaGate';
+import { StoryViewerBackground } from './StoryViewerBackground';
 import type { UserStories } from '@/hooks/useStories';
 
 interface StoryViewerProps {
@@ -28,9 +30,9 @@ export function StoryViewer({
   const [currentStoryIndex, setCurrentStoryIndex] = useState(initialStoryIndex);
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [isMediaLoaded, setIsMediaLoaded] = useState(false);
   const [videoDuration, setVideoDuration] = useState(IMAGE_DURATION);
   const [isInteractionPaused, setIsInteractionPaused] = useState(false);
+  const [isLayoutStable, setIsLayoutStable] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -43,6 +45,26 @@ export function StoryViewer({
   const currentUser = useMemo(() => userStories[currentUserIndex], [userStories, currentUserIndex]);
   const currentStories = useMemo(() => currentUser?.stories || [], [currentUser]);
   const currentStory = useMemo(() => currentStories[currentStoryIndex], [currentStories, currentStoryIndex]);
+
+  // 1) PRÉ-CARREGAMENTO REAL: só libera a URL para render após load (Image.onload / video.onloadeddata)
+  const mediaGate = useStoryMediaGate({
+    url: currentStory?.media_url,
+    mediaType: currentStory?.media_type,
+  });
+
+  const isMediaReady = mediaGate.isReady;
+  const mediaSrc = mediaGate.displayUrl;
+
+  // 5) Só iniciar progresso após load + layout estabilizar
+  useEffect(() => {
+    setIsLayoutStable(false);
+    if (!isMediaReady) return;
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => setIsLayoutStable(true));
+      return () => cancelAnimationFrame(raf2);
+    });
+    return () => cancelAnimationFrame(raf1);
+  }, [isMediaReady, currentStory?.id]);
 
   // Pré-carregar stories quando mudar de usuário
   useEffect(() => {
@@ -61,7 +83,6 @@ export function StoryViewer({
       return;
     }
     setProgress(0);
-    setIsMediaLoaded(false);
   }, [currentStoryIndex, currentStories.length, currentUserIndex, userStories.length, onClose]);
 
   const handlePrevious = useCallback(() => {
@@ -73,12 +94,10 @@ export function StoryViewer({
       setCurrentStoryIndex(prevUser.stories.length - 1);
     }
     setProgress(0);
-    setIsMediaLoaded(false);
   }, [currentStoryIndex, currentUserIndex, userStories]);
 
-  // Callback quando mídia carrega
-  const handleMediaLoaded = useCallback(() => {
-    setIsMediaLoaded(true);
+  // Callback quando o elemento final (<video>) expõe metadata (duração)
+  const handleFinalMediaMounted = useCallback(() => {
     if (currentStory?.media_type === 'video' && videoRef.current) {
       const video = videoRef.current;
       if (video.duration && !isNaN(video.duration)) {
@@ -101,7 +120,8 @@ export function StoryViewer({
     const shouldProgress = currentStory && 
       !isPaused && 
       !isInteractionPaused && 
-      isMediaLoaded && 
+      isMediaReady &&
+      isLayoutStable &&
       currentStory.media_type !== 'video';
 
     if (!shouldProgress) {
@@ -135,18 +155,18 @@ export function StoryViewer({
         cancelAnimationFrame(progressIntervalRef.current);
       }
     };
-  }, [currentStory, isPaused, isInteractionPaused, isMediaLoaded, videoDuration, handleNext]);
+   }, [currentStory, isPaused, isInteractionPaused, isMediaReady, isLayoutStable, videoDuration, handleNext]);
 
   // Controlar vídeo
   useEffect(() => {
-    if (currentStory?.media_type === 'video' && videoRef.current && isMediaLoaded) {
+    if (currentStory?.media_type === 'video' && videoRef.current && isMediaReady && isLayoutStable) {
       if (isPaused || isInteractionPaused) {
         videoRef.current.pause();
       } else {
         videoRef.current.play().catch(console.error);
       }
     }
-  }, [isPaused, isInteractionPaused, isMediaLoaded, currentStory?.media_type]);
+  }, [isPaused, isInteractionPaused, isMediaReady, isLayoutStable, currentStory?.media_type]);
 
   // Handle de progresso de vídeo
   const handleVideoTimeUpdate = useCallback(() => {
@@ -245,25 +265,15 @@ export function StoryViewer({
     <AnimatePresence>
       <motion.div
         ref={containerRef}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+        // 3) ALTURA CORRETA NO MOBILE: 100svh (via util) evita resize/flicker do 100vh
+        className="fixed left-0 top-0 z-50 w-screen h-screen-safe flex items-center justify-center bg-black"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
       >
-        {/* Fundo com blur - apenas quando carregado */}
-        {isMediaLoaded && currentStory.media_url && (
-          <div
-            className="absolute inset-0 will-change-transform"
-            style={{
-              backgroundImage: `url(${currentStory.media_url})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(40px) brightness(0.4)',
-              transform: 'scale(1.2)',
-            }}
-          />
-        )}
+        {/* 4) BLUR SEM REPROCESSAMENTO: memoizado e só muda quando a URL muda */}
+        <StoryViewerBackground url={isMediaReady ? mediaSrc : undefined} />
 
         {/* Conteúdo principal */}
         <div
@@ -278,7 +288,7 @@ export function StoryViewer({
               stories={currentStories}
               currentIndex={currentStoryIndex}
               progress={progress}
-              isPaused={isPaused || isInteractionPaused || !isMediaLoaded}
+              isPaused={isPaused || isInteractionPaused || !isMediaReady || !isLayoutStable}
             />
           )}
 
@@ -313,27 +323,30 @@ export function StoryViewer({
           <div className="relative w-full max-w-sm aspect-[9/16] mx-auto">
             <div className="absolute inset-0 rounded-2xl overflow-hidden bg-black">
               {/* Skeleton sempre visível até carregar */}
-              {!isMediaLoaded && (
+              {!isMediaReady && (
                 <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
                   <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                 </div>
               )}
               
-              {currentStory.media_type === 'image' ? (
-                <StoryImageLoader
-                  src={currentStory.media_url}
-                  alt="Story"
-                  onLoad={handleMediaLoaded}
-                />
-              ) : (
-                <StoryVideoLoader
-                  src={currentStory.media_url}
-                  videoRef={videoRef}
-                  onLoad={handleMediaLoaded}
-                  onTimeUpdate={handleVideoTimeUpdate}
-                  onEnded={handleNext}
-                />
-              )}
+              {/* 1) Não renderizar mídia principal antes do preload */}
+              {isMediaReady && mediaSrc ? (
+                currentStory.media_type === 'image' ? (
+                  <StoryImageLoader
+                    src={mediaSrc}
+                    alt="Story"
+                    onLoad={handleFinalMediaMounted}
+                  />
+                ) : (
+                  <StoryVideoLoader
+                    src={mediaSrc}
+                    videoRef={videoRef}
+                    onLoad={handleFinalMediaMounted}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    onEnded={handleNext}
+                  />
+                )
+              ) : null}
             </div>
           </div>
 
