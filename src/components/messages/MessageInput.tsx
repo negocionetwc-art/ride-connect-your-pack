@@ -109,8 +109,8 @@ export const MessageInput = ({
   };
 
   return (
-    <div className="p-4 border-t border-border/30 bg-background">
-      <div className="flex items-end gap-2">
+    <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto p-4 border-t border-border/30 bg-background z-50 md:z-auto glass md:bg-background">
+      <div className="flex items-end gap-2 max-w-lg mx-auto md:max-w-none">
         {/* Botão de imagem */}
         <input
           ref={fileInputRef}

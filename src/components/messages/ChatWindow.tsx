@@ -87,7 +87,7 @@ export const ChatWindow = ({ conversation, onBack }: ChatWindowProps) => {
       />
 
       {/* Mensagens */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4 pb-24 md:pb-4" ref={scrollRef}>
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />

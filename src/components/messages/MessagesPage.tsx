@@ -56,7 +56,7 @@ export const MessagesPage = ({ onBack, initialConversationId }: MessagesPageProp
   // Layout mobile: mostrar lista ou chat
   if (isMobileChat) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-0">
         {/* Header mobile */}
         {!activeConversation && (
           <header className="sticky top-0 z-40 glass border-b border-border/30">
@@ -70,10 +70,12 @@ export const MessagesPage = ({ onBack, initialConversationId }: MessagesPageProp
         )}
 
         {activeConversation ? (
-          <ChatWindow 
-            conversation={activeConversation}
-            onBack={handleBackToList}
-          />
+          <div className="h-screen flex flex-col">
+            <ChatWindow 
+              conversation={activeConversation}
+              onBack={handleBackToList}
+            />
+          </div>
         ) : (
           <ConversationsList
             activeConversationId={null}
