@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Edit2, Award, Route, Clock, Flame, Camera, UserPlus, UserCheck, Users } from 'lucide-react';
+import { Settings, Edit2, Award, Route, Clock, Flame, Camera, UserPlus, UserCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
@@ -20,6 +20,7 @@ import { BadgeDetailDialog } from './profile/BadgeDetailDialog';
 import { RidesOverlay } from './profile/RidesOverlay';
 import { RideDetailOverlay } from './profile/RideDetailOverlay';
 import { LevelDetailOverlay } from './profile/LevelDetailOverlay';
+import { ProfileStats } from './profile/ProfileStats';
 import type { BadgeWithUnlocked } from '@/hooks/useProfileBadges';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -141,26 +142,6 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
       value: stats?.badgesCount?.toString() || '0',
       icon: Award,
       onClick: () => setShowBadgesOverlay(true),
-    },
-  ];
-
-  // Adicionar estatísticas de seguidores/seguindo quando visualizando outro perfil ou próprio
-  const followStatsData = [
-    {
-      label: 'Seguidores',
-      value: followStatus?.followersCount?.toString() || '0',
-      icon: Users,
-      onClick: () => {
-        // TODO: Abrir modal com lista de seguidores
-      },
-    },
-    {
-      label: 'Seguindo',
-      value: followStatus?.followingCount?.toString() || '0',
-      icon: UserPlus,
-      onClick: () => {
-        // TODO: Abrir modal com lista de seguindo
-      },
     },
   ];
 
@@ -342,9 +323,24 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="px-4 mb-6">
-          <div className="grid grid-cols-6 gap-3">
+        {/* Profile Stats (Instagram style) */}
+        <div className="px-4 border-b border-border/30 pb-4">
+          <ProfileStats
+            posts={stats?.ridesCount || 0}
+            followers={followStatus?.followersCount || 0}
+            following={followStatus?.followingCount || 0}
+            onFollowersClick={() => {
+              // TODO: Abrir modal com lista de seguidores
+            }}
+            onFollowingClick={() => {
+              // TODO: Abrir modal com lista de seguindo
+            }}
+          />
+        </div>
+
+        {/* Stats Grid (Km Total, Rolês, Horas, Badges) */}
+        <div className="px-4 mb-6 mt-6">
+          <div className="grid grid-cols-4 gap-3">
             {statsData.map((stat, index) => {
               const Icon = stat.icon;
               return (
@@ -353,25 +349,6 @@ export const Profile = ({ userId: viewingUserId }: ProfileProps = {}) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={stat.onClick}
-                  className="bg-card rounded-xl p-3 text-center border border-border/50 hover:border-primary/50 transition-colors"
-                >
-                  <Icon className="w-5 h-5 mx-auto text-primary mb-1" />
-                  <p className="text-lg font-bold">{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                </motion.button>
-              );
-            })}
-            {/* Sempre mostrar estatísticas de follow */}
-            {followStatsData.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <motion.button
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: (statsData.length + index) * 0.1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={stat.onClick}
                   className="bg-card rounded-xl p-3 text-center border border-border/50 hover:border-primary/50 transition-colors"
