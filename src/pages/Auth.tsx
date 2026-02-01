@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Bike, Mail, Lock, User, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Bike, Mail, Lock, User, ArrowRight, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { useAuthEmailPassword } from '@/hooks/useAuthEmailPassword';
 
@@ -15,9 +15,11 @@ const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres
 const nameSchema = z.string().min(2, 'Nome deve ter pelo menos 2 caracteres');
 const usernameSchema = z.string().min(3, 'Username deve ter pelo menos 3 caracteres').regex(/^[a-zA-Z0-9_]+$/, 'Username pode conter apenas letras, números e _');
 
+type AuthMode = 'login' | 'signup' | 'forgot-password';
+
 export default function Auth() {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +27,7 @@ export default function Auth() {
   const [username, setUsername] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const { checkUsernameAvailable } = useAuthEmailPassword();
   const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -50,15 +53,12 @@ export default function Auth() {
     const normalizedValue = value.toLowerCase().trim();
     setUsername(normalizedValue);
     
-    // Limpar timeout anterior
     if (usernameCheckTimeoutRef.current) {
       clearTimeout(usernameCheckTimeoutRef.current);
     }
     
-    // Resetar status se muito curto
     if (normalizedValue.length < 3) {
       setUsernameStatus('idle');
-      // Limpar erro de username se existir
       if (errors.username) {
         const newErrors = { ...errors };
         delete newErrors.username;
@@ -67,14 +67,12 @@ export default function Auth() {
       return;
     }
     
-    // Validar formato básico
     if (!/^[a-z0-9_]+$/.test(normalizedValue)) {
       setUsernameStatus('idle');
       setErrors({ ...errors, username: 'Apenas letras minúsculas, números e _' });
       return;
     }
     
-    // Debounce: aguardar 500ms antes de verificar
     setUsernameStatus('checking');
     usernameCheckTimeoutRef.current = setTimeout(async () => {
       try {
@@ -94,7 +92,6 @@ export default function Auth() {
     }, 500);
   };
 
-  // Limpar timeout ao desmontar
   useEffect(() => {
     return () => {
       if (usernameCheckTimeoutRef.current) {
@@ -103,13 +100,15 @@ export default function Auth() {
     };
   }, []);
 
-  // Resetar status do username ao alternar entre login/cadastro
   useEffect(() => {
-    if (isLogin) {
+    if (mode === 'login') {
       setUsernameStatus('idle');
       setUsername('');
     }
-  }, [isLogin]);
+    if (mode !== 'forgot-password') {
+      setForgotPasswordSent(false);
+    }
+  }, [mode]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -119,12 +118,14 @@ export default function Auth() {
       newErrors.email = emailResult.error.errors[0].message;
     }
 
-    const passwordResult = passwordSchema.safeParse(password);
-    if (!passwordResult.success) {
-      newErrors.password = passwordResult.error.errors[0].message;
+    if (mode !== 'forgot-password') {
+      const passwordResult = passwordSchema.safeParse(password);
+      if (!passwordResult.success) {
+        newErrors.password = passwordResult.error.errors[0].message;
+      }
     }
 
-    if (!isLogin) {
+    if (mode === 'signup') {
       const nameResult = nameSchema.safeParse(name);
       if (!nameResult.success) {
         newErrors.name = nameResult.error.errors[0].message;
@@ -184,7 +185,6 @@ export default function Auth() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Verificar username antes de prosseguir
     if (usernameStatus === 'taken' || usernameStatus === 'checking') {
       toast.error('Por favor, escolha um username disponível');
       return;
@@ -225,16 +225,73 @@ export default function Auth() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      setErrors({ email: emailResult.error.errors[0].message });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      
+      console.log('📧 Enviando email de recuperação para:', email);
+      console.log('🔗 URL de redirecionamento:', redirectUrl);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) {
+        console.error('❌ Erro ao enviar email:', error);
+        
+        if (error.message.includes('rate limit') || error.message.includes('rate_limit')) {
+          toast.error('Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.');
+        } else {
+          toast.error(error.message || 'Erro ao enviar email de recuperação');
+        }
+        return;
+      }
+
+      console.log('✅ Email de recuperação enviado');
+      setForgotPasswordSent(true);
+      toast.success('Email de recuperação enviado! Verifique sua caixa de entrada (e pasta de spam).');
+      
+    } catch (error: any) {
+      console.error('❌ Erro inesperado:', error);
+      toast.error(error.message || 'Erro ao enviar email de recuperação');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getFormTitle = () => {
+    switch (mode) {
+      case 'login': return 'Entrar na sua conta';
+      case 'signup': return 'Criar nova conta';
+      case 'forgot-password': return 'Recuperar senha';
+    }
+  };
+
+  const getFormDescription = () => {
+    switch (mode) {
+      case 'login': return 'Use seu email e senha para acessar';
+      case 'signup': return 'Preencha os dados para se cadastrar';
+      case 'forgot-password': return 'Digite seu email para receber o link de recuperação';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-30" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl opacity-30" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-30" />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 mb-4 glow">
             <Bike className="w-8 h-8 text-primary" />
@@ -246,167 +303,224 @@ export default function Auth() {
         <Card className="glass border-border/50">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-xl">
-              {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
+              {getFormTitle()}
             </CardTitle>
             <CardDescription>
-              {isLogin
-                ? 'Use seu email e senha para acessar'
-                : 'Preencha os dados para se cadastrar'}
+              {getFormDescription()}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={isLogin ? handleLogin : handleSignUp} className="space-y-4">
-              {!isLogin && (
-                <>
+            {mode === 'forgot-password' && forgotPasswordSent ? (
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mx-auto">
+                  <CheckCircle2 className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium">Email enviado!</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Enviamos um link de recuperação para <strong>{email}</strong>. 
+                    Verifique sua caixa de entrada e pasta de spam.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setMode('login');
+                    setForgotPasswordSent(false);
+                  }}
+                  variant="outline"
+                  className="w-full gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar para o login
+                </Button>
+              </div>
+            ) : (
+              <>
+                <form onSubmit={
+                  mode === 'login' ? handleLogin : 
+                  mode === 'signup' ? handleSignUp : 
+                  handleForgotPassword
+                } className="space-y-4">
+                  {mode === 'signup' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          Nome completo
+                        </Label>
+                        <Input
+                          id="name"
+                          type="text"
+                          placeholder="Seu nome"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className={errors.name ? 'border-destructive' : ''}
+                        />
+                        {errors.name && (
+                          <p className="text-xs text-destructive">{errors.name}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="username" className="flex items-center gap-2">
+                          <span className="text-muted-foreground">@</span>
+                          Username
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="username"
+                            type="text"
+                            placeholder="seu_username"
+                            value={username}
+                            onChange={(e) => handleUsernameChange(e.target.value)}
+                            className={
+                              errors.username || usernameStatus === 'taken'
+                                ? 'border-destructive pr-10'
+                                : usernameStatus === 'available'
+                                ? 'border-primary pr-10'
+                                : usernameStatus === 'checking'
+                                ? 'pr-10'
+                                : ''
+                            }
+                          />
+                          {usernameStatus === 'checking' && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                          {usernameStatus === 'available' && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <CheckCircle2 className="w-4 h-4 text-primary" />
+                            </div>
+                          )}
+                          {usernameStatus === 'taken' && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <XCircle className="w-4 h-4 text-destructive" />
+                            </div>
+                          )}
+                        </div>
+                        {usernameStatus === 'checking' && (
+                          <p className="text-xs text-muted-foreground">Verificando disponibilidade...</p>
+                        )}
+                        {usernameStatus === 'available' && (
+                          <p className="text-xs text-primary">✓ Username disponível</p>
+                        )}
+                        {usernameStatus === 'taken' && (
+                          <p className="text-xs text-destructive">✗ Este username já está em uso</p>
+                        )}
+                        {errors.username && (
+                          <p className="text-xs text-destructive">{errors.username}</p>
+                        )}
+                        {username.length > 0 && username.length < 3 && !errors.username && (
+                          <p className="text-xs text-muted-foreground">Mínimo de 3 caracteres</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      Nome completo
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      Email
                     </Label>
                     <Input
-                      id="name"
-                      type="text"
-                      placeholder="Seu nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className={errors.name ? 'border-destructive' : ''}
+                      id="email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={errors.email ? 'border-destructive' : ''}
                     />
-                    {errors.name && (
-                      <p className="text-xs text-destructive">{errors.name}</p>
+                    {errors.email && (
+                      <p className="text-xs text-destructive">{errors.email}</p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="username" className="flex items-center gap-2">
-                      <span className="text-muted-foreground">@</span>
-                      Username
-                    </Label>
-                    <div className="relative">
+                  {mode !== 'forgot-password' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-muted-foreground" />
+                        Senha
+                      </Label>
                       <Input
-                        id="username"
-                        type="text"
-                        placeholder="seu_username"
-                        value={username}
-                        onChange={(e) => handleUsernameChange(e.target.value)}
-                        className={
-                          errors.username || usernameStatus === 'taken'
-                            ? 'border-destructive pr-10'
-                            : usernameStatus === 'available'
-                            ? 'border-green-500 pr-10'
-                            : usernameStatus === 'checking'
-                            ? 'pr-10'
-                            : ''
-                        }
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={errors.password ? 'border-destructive' : ''}
                       />
-                      {usernameStatus === 'checking' && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        </div>
-                      )}
-                      {usernameStatus === 'available' && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        </div>
-                      )}
-                      {usernameStatus === 'taken' && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <XCircle className="w-4 h-4 text-destructive" />
-                        </div>
+                      {errors.password && (
+                        <p className="text-xs text-destructive">{errors.password}</p>
                       )}
                     </div>
-                    {usernameStatus === 'checking' && (
-                      <p className="text-xs text-muted-foreground">Verificando disponibilidade...</p>
-                    )}
-                    {usernameStatus === 'available' && (
-                      <p className="text-xs text-green-600">✓ Username disponível</p>
-                    )}
-                    {usernameStatus === 'taken' && (
-                      <p className="text-xs text-destructive">✗ Este username já está em uso</p>
-                    )}
-                    {errors.username && (
-                      <p className="text-xs text-destructive">{errors.username}</p>
-                    )}
-                    {username.length > 0 && username.length < 3 && !errors.username && (
-                      <p className="text-xs text-muted-foreground">Mínimo de 3 caracteres</p>
-                    )}
-                  </div>
-                </>
-              )}
+                  )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={errors.email ? 'border-destructive' : ''}
-                />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email}</p>
-                )}
-              </div>
+                  {mode === 'login' && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => setMode('forgot-password')}
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        Esqueceu sua senha?
+                      </button>
+                    </div>
+                  )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                  Senha
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={errors.password ? 'border-destructive' : ''}
-                />
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password}</p>
-                )}
-              </div>
+                  <Button
+                    type="submit"
+                    className="w-full gap-2"
+                    disabled={isLoading || (mode === 'signup' && (usernameStatus === 'taken' || usernameStatus === 'checking' || username.length < 3))}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        {mode === 'login' && 'Entrar'}
+                        {mode === 'signup' && 'Criar conta'}
+                        {mode === 'forgot-password' && 'Enviar link de recuperação'}
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
 
-              <Button
-                type="submit"
-                className="w-full gap-2"
-                disabled={isLoading || (!isLogin && (usernameStatus === 'taken' || usernameStatus === 'checking' || username.length < 3))}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    {isLogin ? 'Entrar' : 'Criar conta'}
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                {isLogin ? (
-                  <>
-                    Não tem conta?{' '}
-                    <span className="text-primary font-medium">Cadastre-se</span>
-                  </>
-                ) : (
-                  <>
-                    Já tem conta?{' '}
-                    <span className="text-primary font-medium">Fazer login</span>
-                  </>
-                )}
-              </button>
-            </div>
+                <div className="mt-6 text-center space-y-2">
+                  {mode === 'forgot-password' ? (
+                    <button
+                      type="button"
+                      onClick={() => setMode('login')}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 mx-auto"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Voltar para o login
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode(mode === 'login' ? 'signup' : 'login');
+                        setErrors({});
+                      }}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {mode === 'login' ? (
+                        <>
+                          Não tem conta?{' '}
+                          <span className="text-primary font-medium">Cadastre-se</span>
+                        </>
+                      ) : (
+                        <>
+                          Já tem conta?{' '}
+                          <span className="text-primary font-medium">Fazer login</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
