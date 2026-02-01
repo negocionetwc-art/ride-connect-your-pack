@@ -14,6 +14,7 @@ const Index = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [createPostType, setCreatePostType] = useState<'photo' | 'route' | 'live' | 'group'>('photo');
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [isStoryOverlayOpen, setIsStoryOverlayOpen] = useState(false);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -35,10 +36,19 @@ const Index = () => {
     console.log('Index: showCreate set to true');
   };
 
+  const handleStoryOverlayChange = (isOpen: boolean) => {
+    setIsStoryOverlayOpen(isOpen);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'feed':
-        return <Feed onProfileClick={handleProfileClick} />;
+        return (
+          <Feed 
+            onProfileClick={handleProfileClick} 
+            onStoryOverlayChange={handleStoryOverlayChange}
+          />
+        );
       case 'map':
         return <LiveMap />;
       case 'ride':
@@ -48,15 +58,27 @@ const Index = () => {
       case 'profile':
         return <Profile userId={viewingUserId} />;
       default:
-        return <Feed onProfileClick={handleProfileClick} />;
+        return (
+          <Feed 
+            onProfileClick={handleProfileClick} 
+            onStoryOverlayChange={handleStoryOverlayChange}
+          />
+        );
     }
   };
+
+  // Ocultar BottomNav e FAB quando story overlay está aberto
+  const hideNavigation = isStoryOverlayOpen || showCreate;
 
   return (
     <div className="min-h-screen bg-background">
       {renderContent()}
-      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-      <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
+      {!hideNavigation && (
+        <>
+          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+          <FloatingActionButton onOptionSelect={handleFabOptionSelect} />
+        </>
+      )}
       
       <AnimatePresence>
         {showCreate && (

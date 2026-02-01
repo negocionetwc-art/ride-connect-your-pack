@@ -37,7 +37,8 @@ export function useMessages(conversationId: string | null) {
     queryFn: async () => {
       if (!conversationId) return [];
 
-      const { data, error } = await supabase
+      // Tabela messages pode não existir ainda
+      const { data, error } = await (supabase as any)
         .from('messages')
         .select(`
           *,
@@ -52,6 +53,11 @@ export function useMessages(conversationId: string | null) {
         .order('created_at', { ascending: true });
 
       if (error) {
+        // Se tabela não existe, retornar array vazio
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          console.warn('Tabela messages não existe ainda');
+          return [];
+        }
         console.error('Erro ao buscar mensagens:', error);
         throw error;
       }
@@ -82,7 +88,7 @@ export function useMessagesRealtime(conversationId: string | null) {
           console.log('Nova mensagem recebida:', payload);
           
           // Buscar mensagem com dados do sender
-          const { data: message } = await supabase
+          const { data: message } = await (supabase as any)
             .from('messages')
             .select(`
               *,
@@ -158,7 +164,7 @@ export function useSendMessage() {
         throw new Error('Não autenticado');
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('messages')
         .insert({
           conversation_id: conversationId,
@@ -200,7 +206,7 @@ export function useMarkMessagesAsRead() {
         throw new Error('Não autenticado');
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .rpc('mark_messages_as_read', {
           conv_id: conversationId,
           user_uuid: user.id
@@ -230,7 +236,7 @@ export function useAddReaction() {
       messageId: string;
       reaction: string | null;
     }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('messages')
         .update({ reaction })
         .eq('id', messageId);

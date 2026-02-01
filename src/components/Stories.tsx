@@ -1,17 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStories } from '@/hooks/useStories';
+import { useCurrentUserStory } from '@/hooks/useCurrentUserStory';
+import { useProfile } from '@/hooks/useProfile';
+import { useStoryPreloader } from '@/hooks/useStoryPreloader';
 import { StoryViewer } from './stories/StoryViewer';
-import { AddStoryButton } from './stories/AddStoryButton';
+import { StoryAvatar } from './stories/StoryAvatar';
+import { AddStoryPage } from './stories/AddStoryPage';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export const Stories = () => {
-  const { data: userStories, isLoading, isError } = useStories();
+interface StoriesProps {
+  onOverlayChange?: (isOpen: boolean) => void;
+}
+
+export const Stories = ({ onOverlayChange }: StoriesProps) => {
+  const { data: userStories, isLoading, isError, refetch } = useStories();
+  const { data: profile } = useProfile();
+  const { hasActiveStory, refetch: refetchCurrentUserStory } = useCurrentUserStory();
+  const { preloadUserStories } = useStoryPreloader(userStories || []);
+  
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedUserIndex, setSelectedUserIndex] = useState(0);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+  const [addStoryOpen, setAddStoryOpen] = useState(false);
+
+  // Notificar parent quando overlay muda
+  useEffect(() => {
+    onOverlayChange?.(viewerOpen || addStoryOpen);
+  }, [viewerOpen, addStoryOpen, onOverlayChange]);
+
+  // Encontrar índice do usuário atual nos stories (se tiver story ativo)
+  const currentUserStoryIndex = userStories?.findIndex(
+    us => us.user_id === profile?.id
+  ) ?? -1;
+
+  const handleOwnAvatarClick = () => {
+    // Se tem story ativo, abrir visualização
+    if (hasActiveStory && currentUserStoryIndex >= 0) {
+      setSelectedUserIndex(currentUserStoryIndex);
+      setSelectedStoryIndex(0);
+      setViewerOpen(true);
+    } else {
+      // Se não tem, abrir tela de adicionar
+      setAddStoryOpen(true);
+    }
+  };
+
+  const handleAddStoryClick = () => {
+    setAddStoryOpen(true);
+  };
 
   const handleStoryClick = (userIndex: number, storyIndex: number) => {
+    // Pré-carregar antes de abrir
+    preloadUserStories(userIndex);
     setSelectedUserIndex(userIndex);
     setSelectedStoryIndex(storyIndex);
     setViewerOpen(true);
@@ -21,13 +62,18 @@ export const Stories = () => {
     setViewerOpen(false);
   };
 
+  const handleStoryCreated = () => {
+    refetch();
+    refetchCurrentUserStory();
+  };
+
   if (isLoading) {
     return (
       <div className="py-4">
         <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
-              <Skeleton className="w-16 h-16 rounded-full" />
+            <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+              <Skeleton className="w-[68px] h-[68px] rounded-full" />
               <Skeleton className="w-12 h-3 rounded" />
             </div>
           ))}
@@ -36,73 +82,54 @@ export const Stories = () => {
     );
   }
 
-  // Se houver erro, não mostrar nada (silenciosamente falhar)
   if (isError) {
     return null;
   }
 
-  if (!userStories || userStories.length === 0) {
-    return (
-      <div className="py-4">
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
-          <AddStoryButton />
-        </div>
-      </div>
-    );
-  }
+  // Filtrar stories de outros usuários (excluir o próprio usuário da lista principal)
+  const otherUsersStories = userStories?.filter(us => us.user_id !== profile?.id) || [];
 
   return (
     <>
       <div className="py-4">
         <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
-          {/* Botão Adicionar Story */}
-          <AddStoryButton />
+          {/* Avatar do próprio usuário - sempre primeiro */}
+          {profile && (
+            <StoryAvatar
+              avatarUrl={profile.avatar_url}
+              name={profile.name}
+              hasActiveStory={hasActiveStory}
+              hasUnviewedStory={false}
+              isOwnStory={true}
+              onClick={handleOwnAvatarClick}
+              onAddClick={handleAddStoryClick}
+              delay={0}
+            />
+          )}
 
-          {/* Stories dos usuários */}
-          {userStories.map((userStory, userIndex) => {
-            const firstStory = userStory.stories[0];
-            const hasUnviewed = userStory.has_unviewed;
-
+          {/* Stories dos outros usuários */}
+          {otherUsersStories.map((userStory, index) => {
+            // Recalcular índice considerando que removemos o próprio usuário
+            const originalIndex = userStories?.findIndex(us => us.user_id === userStory.user_id) ?? index;
+            
             return (
-              <motion.button
+              <StoryAvatar
                 key={userStory.user_id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: (userIndex + 1) * 0.05 }}
-                onClick={() => handleStoryClick(userIndex, 0)}
-                className="flex flex-col items-center gap-1 flex-shrink-0"
-              >
-                <div
-                  className={`relative p-0.5 rounded-full ${
-                    hasUnviewed
-                      ? 'bg-gradient-to-br from-primary via-orange-500 to-yellow-500'
-                      : 'bg-muted'
-                  }`}
-                >
-                  <div className="p-0.5 bg-background rounded-full">
-                    <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                      <img
-                        src={userStory.profile.avatar_url || '/placeholder.svg'}
-                        alt={userStory.profile.name}
-                        className="w-full h-full object-cover"
-                      />
-                      {firstStory && (
-                        <div className="absolute inset-0 bg-black/20" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xs text-foreground/80 max-w-[70px] truncate">
-                  {userStory.profile.name.split(' ')[0]}
-                </span>
-              </motion.button>
+                avatarUrl={userStory.profile.avatar_url}
+                name={userStory.profile.name}
+                hasActiveStory={true}
+                hasUnviewedStory={userStory.has_unviewed}
+                isOwnStory={false}
+                onClick={() => handleStoryClick(originalIndex, 0)}
+                delay={index + 1}
+              />
             );
           })}
         </div>
       </div>
 
       {/* Story Viewer */}
-      {viewerOpen && userStories.length > 0 && (
+      {viewerOpen && userStories && userStories.length > 0 && (
         <StoryViewer
           userStories={userStories}
           initialUserIndex={selectedUserIndex}
@@ -110,6 +137,13 @@ export const Stories = () => {
           onClose={handleViewerClose}
         />
       )}
+
+      {/* Página de Adicionar Story */}
+      <AddStoryPage
+        isOpen={addStoryOpen}
+        onClose={() => setAddStoryOpen(false)}
+        onSuccess={handleStoryCreated}
+      />
     </>
   );
 };
