@@ -91,81 +91,135 @@ ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.typing_indicators ENABLE ROW LEVEL SECURITY;
 
--- 7. Criar políticas RLS se não existirem (usando IF NOT EXISTS não funciona para políticas, então usamos DROP IF EXISTS primeiro)
-DROP POLICY IF EXISTS "Users can view own conversations" ON public.conversations;
-CREATE POLICY "Users can view own conversations"
-    ON public.conversations FOR SELECT
-    USING (
-        auth.uid() = participant_1_id OR 
-        auth.uid() = participant_2_id
-    );
+-- 7. Criar políticas RLS (CREATE OR REPLACE não funciona para políticas, então criamos apenas se não existirem)
+DO $$
+BEGIN
+    -- Políticas para conversations
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'conversations' 
+        AND policyname = 'Users can view own conversations'
+    ) THEN
+        CREATE POLICY "Users can view own conversations"
+            ON public.conversations FOR SELECT
+            USING (
+                auth.uid() = participant_1_id OR 
+                auth.uid() = participant_2_id
+            );
+    END IF;
 
-DROP POLICY IF EXISTS "Users can create conversations" ON public.conversations;
-CREATE POLICY "Users can create conversations"
-    ON public.conversations FOR INSERT
-    WITH CHECK (
-        auth.uid() = participant_1_id OR 
-        auth.uid() = participant_2_id
-    );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'conversations' 
+        AND policyname = 'Users can create conversations'
+    ) THEN
+        CREATE POLICY "Users can create conversations"
+            ON public.conversations FOR INSERT
+            WITH CHECK (
+                auth.uid() = participant_1_id OR 
+                auth.uid() = participant_2_id
+            );
+    END IF;
 
-DROP POLICY IF EXISTS "Users can update own conversations" ON public.conversations;
-CREATE POLICY "Users can update own conversations"
-    ON public.conversations FOR UPDATE
-    USING (
-        auth.uid() = participant_1_id OR 
-        auth.uid() = participant_2_id
-    );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'conversations' 
+        AND policyname = 'Users can update own conversations'
+    ) THEN
+        CREATE POLICY "Users can update own conversations"
+            ON public.conversations FOR UPDATE
+            USING (
+                auth.uid() = participant_1_id OR 
+                auth.uid() = participant_2_id
+            );
+    END IF;
 
-DROP POLICY IF EXISTS "Users can view messages in own conversations" ON public.messages;
-CREATE POLICY "Users can view messages in own conversations"
-    ON public.messages FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.conversations
-            WHERE id = messages.conversation_id
-                AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
-        )
-    );
+    -- Políticas para messages
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'messages' 
+        AND policyname = 'Users can view messages in own conversations'
+    ) THEN
+        CREATE POLICY "Users can view messages in own conversations"
+            ON public.messages FOR SELECT
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.conversations
+                    WHERE id = messages.conversation_id
+                        AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
+                )
+            );
+    END IF;
 
-DROP POLICY IF EXISTS "Users can send messages in own conversations" ON public.messages;
-CREATE POLICY "Users can send messages in own conversations"
-    ON public.messages FOR INSERT
-    WITH CHECK (
-        auth.uid() = sender_id AND
-        EXISTS (
-            SELECT 1 FROM public.conversations
-            WHERE id = conversation_id
-                AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
-        )
-    );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'messages' 
+        AND policyname = 'Users can send messages in own conversations'
+    ) THEN
+        CREATE POLICY "Users can send messages in own conversations"
+            ON public.messages FOR INSERT
+            WITH CHECK (
+                auth.uid() = sender_id AND
+                EXISTS (
+                    SELECT 1 FROM public.conversations
+                    WHERE id = conversation_id
+                        AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
+                )
+            );
+    END IF;
 
-DROP POLICY IF EXISTS "Users can update own messages" ON public.messages;
-CREATE POLICY "Users can update own messages"
-    ON public.messages FOR UPDATE
-    USING (
-        auth.uid() = sender_id OR
-        EXISTS (
-            SELECT 1 FROM public.conversations
-            WHERE id = messages.conversation_id
-                AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
-        )
-    );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'messages' 
+        AND policyname = 'Users can update own messages'
+    ) THEN
+        CREATE POLICY "Users can update own messages"
+            ON public.messages FOR UPDATE
+            USING (
+                auth.uid() = sender_id OR
+                EXISTS (
+                    SELECT 1 FROM public.conversations
+                    WHERE id = messages.conversation_id
+                        AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
+                )
+            );
+    END IF;
 
-DROP POLICY IF EXISTS "Users can manage own typing indicators" ON public.typing_indicators;
-CREATE POLICY "Users can manage own typing indicators"
-    ON public.typing_indicators FOR ALL
-    USING (auth.uid() = user_id);
+    -- Políticas para typing_indicators
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'typing_indicators' 
+        AND policyname = 'Users can manage own typing indicators'
+    ) THEN
+        CREATE POLICY "Users can manage own typing indicators"
+            ON public.typing_indicators FOR ALL
+            USING (auth.uid() = user_id);
+    END IF;
 
-DROP POLICY IF EXISTS "Users can view typing in own conversations" ON public.typing_indicators;
-CREATE POLICY "Users can view typing in own conversations"
-    ON public.typing_indicators FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.conversations
-            WHERE id = typing_indicators.conversation_id
-                AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
-        )
-    );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'typing_indicators' 
+        AND policyname = 'Users can view typing in own conversations'
+    ) THEN
+        CREATE POLICY "Users can view typing in own conversations"
+            ON public.typing_indicators FOR SELECT
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.conversations
+                    WHERE id = typing_indicators.conversation_id
+                        AND (participant_1_id = auth.uid() OR participant_2_id = auth.uid())
+                )
+            );
+    END IF;
+END $$;
 
 -- 8. Criar/recriar função get_or_create_conversation
 CREATE OR REPLACE FUNCTION public.get_or_create_conversation(user1_id UUID, user2_id UUID)
@@ -314,11 +368,18 @@ END;
 $$;
 
 -- 12. Criar trigger se não existir
-DROP TRIGGER IF EXISTS on_message_update_conversation ON public.messages;
-CREATE TRIGGER on_message_update_conversation
-    AFTER INSERT ON public.messages
-    FOR EACH ROW
-    EXECUTE FUNCTION public.update_conversation_on_message();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'on_message_update_conversation'
+    ) THEN
+        CREATE TRIGGER on_message_update_conversation
+            AFTER INSERT ON public.messages
+            FOR EACH ROW
+            EXECUTE FUNCTION public.update_conversation_on_message();
+    END IF;
+END $$;
 
 -- 13. Habilitar realtime (pode dar erro se já estiver habilitado, mas não é crítico)
 DO $$
