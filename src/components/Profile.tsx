@@ -152,7 +152,7 @@ export const Profile = () => {
         {/* Profile Header */}
         <div className="relative">
           {/* Cover com opção de trocar */}
-          <div className="relative h-32 overflow-hidden group">
+          <div className="relative h-40 overflow-hidden group">
             {profile?.cover_url ? (
               <img
                 src={profile.cover_url}
@@ -175,7 +175,7 @@ export const Profile = () => {
 
           {/* Avatar & Info */}
           <div className="px-4 pb-4">
-            <div className="relative -mt-16 flex items-end gap-4">
+            <div className="relative -mt-14 flex items-end gap-4">
               <div className="relative">
                 <img
                   src={
@@ -195,7 +195,7 @@ export const Profile = () => {
               </div>
 
               <div
-                className="flex-1 pb-2 cursor-pointer"
+                className="flex-1 pb-3 cursor-pointer"
                 onClick={() => setShowEditProfile(true)}
               >
                 <h2 className="text-xl font-bold">{profile?.name || 'Usuário'}</h2>
