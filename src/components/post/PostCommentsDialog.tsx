@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePostComments } from '@/hooks/usePostComments';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X, ChevronLeft } from 'lucide-react';
 import { CommentItem } from './CommentItem';
 import { CommentInput } from './CommentInput';
 
@@ -23,58 +22,60 @@ export const PostCommentsDialog = ({
 }: PostCommentsDialogProps) => {
   const { data: comments, isLoading } = usePostComments(postId);
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <DialogTitle>
-            Comentários {comments && comments.length > 0 && `(${comments.length})`}
-          </DialogTitle>
-        </DialogHeader>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-background"
+      >
+        {/* Header estilo Instagram */}
+        <header className="flex items-center justify-between px-4 h-14 border-b border-border sticky top-0 bg-background z-10">
+          <button
+            onClick={onClose}
+            className="p-2 -ml-2 rounded-full hover:bg-secondary"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="font-semibold text-base">
+            Comentários
+          </h1>
+          <div className="w-10" /> {/* Spacer para centralizar o título */}
+        </header>
 
-        {/* Preview do post (opcional) */}
-        {postImage && (
-          <div className="px-6 py-3 bg-accent/30">
-            <div className="flex items-center gap-3">
-              <img 
-                src={postImage} 
-                alt="Post preview"
-                className="w-16 h-16 object-cover rounded-lg"
-              />
-              {postCaption && (
-                <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
-                  {postCaption}
-                </p>
-              )}
-            </div>
+        {/* Conteúdo */}
+        <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+          {/* Lista de comentários */}
+          <ScrollArea className="flex-1">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : comments && comments.length > 0 ? (
+              <div className="py-2">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="px-4 py-3 hover:bg-secondary/30 transition-colors">
+                    <CommentItem comment={comment} postId={postId} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-lg font-medium">Nenhum comentário ainda</p>
+                <p className="text-sm mt-1">Inicie a conversa.</p>
+              </div>
+            )}
+          </ScrollArea>
+
+          {/* Input de comentário fixo no bottom - estilo Instagram */}
+          <div className="border-t border-border bg-background p-4">
+            <CommentInput postId={postId} />
           </div>
-        )}
-
-        {/* Lista de comentários */}
-        <ScrollArea className="flex-1 px-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : comments && comments.length > 0 ? (
-            <div className="space-y-4 py-4">
-              {comments.map((comment) => (
-                <CommentItem key={comment.id} comment={comment} postId={postId} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>Nenhum comentário ainda</p>
-              <p className="text-sm mt-1">Seja o primeiro a comentar!</p>
-            </div>
-          )}
-        </ScrollArea>
-
-        {/* Input de comentário */}
-        <div className="px-6 py-4 border-t bg-background">
-          <CommentInput postId={postId} />
         </div>
-      </DialogContent>
-    </Dialog>
+      </motion.div>
+    </AnimatePresence>
   );
 };

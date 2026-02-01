@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useAddComment } from '@/hooks/useAddComment';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Smile } from 'lucide-react';
 
 interface CommentInputProps {
   postId: string;
@@ -27,41 +25,41 @@ export const CommentInput = ({ postId }: CommentInputProps) => {
     );
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd + Enter para enviar
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      handleSubmit(e);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2">
-      <div className="flex-1">
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Adicione um comentário..."
-          className="min-h-[60px] max-h-[120px] resize-none"
-          disabled={isPending}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Pressione Ctrl+Enter para enviar
-        </p>
-      </div>
-
-      <Button
-        type="submit"
-        size="icon"
-        disabled={!content.trim() || isPending}
-        className="shrink-0"
+    <form onSubmit={handleSubmit} className="flex items-center gap-3">
+      {/* Botão de emoji (futuro) */}
+      <button 
+        type="button"
+        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+        disabled={isPending}
       >
-        {isPending ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Send className="w-4 h-4" />
-        )}
-      </Button>
+        <Smile className="w-6 h-6" />
+      </button>
+
+      {/* Input estilo Instagram */}
+      <input
+        type="text"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Adicione um comentário..."
+        disabled={isPending}
+        className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground disabled:opacity-50"
+      />
+
+      {/* Botão de publicar */}
+      {content.trim() && (
+        <button
+          type="submit"
+          disabled={isPending}
+          className="shrink-0 text-primary font-semibold text-sm hover:text-primary/80 transition-colors disabled:opacity-50"
+        >
+          {isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            'Publicar'
+          )}
+        </button>
+      )}
     </form>
   );
 };
