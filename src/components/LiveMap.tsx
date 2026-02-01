@@ -34,7 +34,7 @@ interface RiderInfo {
   location?: { lat: number; lng: number };
 }
 
-const onlineRiders = users.filter(u => u.isOnline);
+const mockOnlineRiders = users.filter(u => u.isOnline);
 
 // Configurar ícone padrão do Leaflet (necessário para React-Leaflet)
 delete (Icon.Default.prototype as any)._getIconUrl;
@@ -385,8 +385,8 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
             {/* Contador de online */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
-              <span className="hidden sm:inline">{onlineRiders.length + (isSharing ? 1 : 0)} online</span>
-              <span className="sm:hidden">{onlineRiders.length + (isSharing ? 1 : 0)}</span>
+              <span className="hidden sm:inline">{onlineRiders.length + mockOnlineRiders.length + (isSharing ? 1 : 0)} online</span>
+              <span className="sm:hidden">{onlineRiders.length + mockOnlineRiders.length + (isSharing ? 1 : 0)}</span>
             </div>
           </div>
         </div>
@@ -423,7 +423,7 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
           {/* groupsWithLocation está vazio pois a tabela groups não tem lat/lng */}
 
           {/* Marcadores de Riders Online (mock data) */}
-          {onlineRiders.map((rider) => {
+          {mockOnlineRiders.map((rider) => {
             if (!rider.location) return null;
             return (
               <Marker
