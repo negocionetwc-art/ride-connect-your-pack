@@ -252,6 +252,7 @@ export type Database = {
           bike: string | null
           bike_image_url: string | null
           bio: string | null
+          cover_url: string | null
           created_at: string
           id: string
           level: number
@@ -265,6 +266,7 @@ export type Database = {
           bike?: string | null
           bike_image_url?: string | null
           bio?: string | null
+          cover_url?: string | null
           created_at?: string
           id: string
           level?: number
@@ -278,6 +280,7 @@ export type Database = {
           bike?: string | null
           bike_image_url?: string | null
           bio?: string | null
+          cover_url?: string | null
           created_at?: string
           id?: string
           level?: number

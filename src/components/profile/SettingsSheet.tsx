@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LogOut, User, Image, Lock, Mail } from 'lucide-react';
+import { LogOut, User, Image, Lock, Mail, ImageIcon } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -18,6 +18,7 @@ interface SettingsSheetProps {
   onOpenChange: (open: boolean) => void;
   onEditProfile: () => void;
   onEditAvatar: () => void;
+  onEditCover?: () => void;
 }
 
 export const SettingsSheet = ({
@@ -25,6 +26,7 @@ export const SettingsSheet = ({
   onOpenChange,
   onEditProfile,
   onEditAvatar,
+  onEditCover,
 }: SettingsSheetProps) => {
   const { signOut } = useAuthEmailPassword();
   const { data: profile } = useProfile();
@@ -94,6 +96,19 @@ export const SettingsSheet = ({
               <Image className="w-4 h-4 mr-2" />
               Trocar avatar
             </Button>
+            {onEditCover && (
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  onEditCover();
+                  onOpenChange(false);
+                }}
+              >
+                <ImageIcon className="w-4 h-4 mr-2" />
+                Trocar capa do perfil
+              </Button>
+            )}
           </div>
 
           {/* Segurança */}

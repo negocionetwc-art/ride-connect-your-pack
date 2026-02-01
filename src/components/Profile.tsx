@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Edit2, Award, Route, Clock, Flame } from 'lucide-react';
+import { Settings, Edit2, Award, Route, Clock, Flame, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfileStats } from '@/hooks/useProfileStats';
@@ -12,6 +12,7 @@ import { EditProfileDialog } from './profile/EditProfileDialog';
 import { AvatarUploadDialog } from './profile/AvatarUploadDialog';
 import { BikeImageUploadDialog } from './profile/BikeImageUploadDialog';
 import { BikeImageViewer } from './profile/BikeImageViewer';
+import { CoverImageUploadDialog } from './profile/CoverImageUploadDialog';
 import { BadgesOverlay } from './profile/BadgesOverlay';
 import { BadgeDetailDialog } from './profile/BadgeDetailDialog';
 import { RidesOverlay } from './profile/RidesOverlay';
@@ -30,6 +31,7 @@ export const Profile = () => {
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
   const [showBikeImageUpload, setShowBikeImageUpload] = useState(false);
   const [showBikeImageViewer, setShowBikeImageViewer] = useState(false);
+  const [showCoverImageUpload, setShowCoverImageUpload] = useState(false);
   const [showBadgesOverlay, setShowBadgesOverlay] = useState(false);
   const [showRidesOverlay, setShowRidesOverlay] = useState(false);
   const [showLevelDetail, setShowLevelDetail] = useState(false);
@@ -149,8 +151,27 @@ export const Profile = () => {
 
         {/* Profile Header */}
         <div className="relative">
-          {/* Cover */}
-          <div className="h-32 bg-gradient-to-br from-primary/40 via-orange-600/30 to-background" />
+          {/* Cover com opção de trocar */}
+          <div className="relative h-32 overflow-hidden group">
+            {profile?.cover_url ? (
+              <img
+                src={profile.cover_url}
+                alt="Capa do perfil"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-primary/40 via-orange-600/30 to-background" />
+            )}
+            
+            {/* Botão para trocar capa */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowCoverImageUpload(true)}
+              className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+            >
+              <Camera className="w-4 h-4 text-white" />
+            </motion.button>
+          </div>
 
           {/* Avatar & Info */}
           <div className="px-4 pb-4">
@@ -379,6 +400,7 @@ export const Profile = () => {
         onOpenChange={setShowSettings}
         onEditProfile={() => setShowEditProfile(true)}
         onEditAvatar={() => setShowAvatarUpload(true)}
+        onEditCover={() => setShowCoverImageUpload(true)}
       />
 
       <EditProfileDialog
@@ -405,6 +427,11 @@ export const Profile = () => {
           bikeName={profile.bike || undefined}
         />
       )}
+
+      <CoverImageUploadDialog
+        open={showCoverImageUpload}
+        onOpenChange={setShowCoverImageUpload}
+      />
 
       <BadgesOverlay
         open={showBadgesOverlay}
