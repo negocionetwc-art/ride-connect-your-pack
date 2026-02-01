@@ -93,12 +93,6 @@ export type Database = {
           member_count: number
           name: string
           owner_id: string
-          latitude: number | null
-          longitude: number | null
-          address: string | null
-          phone: string | null
-          website: string | null
-          is_visible_on_map: boolean
         }
         Insert: {
           category: string
@@ -109,12 +103,6 @@ export type Database = {
           member_count?: number
           name: string
           owner_id: string
-          latitude?: number | null
-          longitude?: number | null
-          address?: string | null
-          phone?: string | null
-          website?: string | null
-          is_visible_on_map?: boolean
         }
         Update: {
           category?: string
@@ -125,107 +113,11 @@ export type Database = {
           member_count?: number
           name?: string
           owner_id?: string
-          latitude?: number | null
-          longitude?: number | null
-          address?: string | null
-          phone?: string | null
-          website?: string | null
-          is_visible_on_map?: boolean
         }
         Relationships: [
           {
             foreignKeyName: "groups_owner_id_fkey"
             columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      location_photos: {
-        Row: {
-          id: string
-          group_id: string
-          photo_url: string
-          caption: string | null
-          uploaded_by: string
-          created_at: string
-          display_order: number
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          photo_url: string
-          caption?: string | null
-          uploaded_by: string
-          created_at?: string
-          display_order?: number
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          photo_url?: string
-          caption?: string | null
-          uploaded_by?: string
-          created_at?: string
-          display_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "location_photos_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "location_photos_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      location_reviews: {
-        Row: {
-          id: string
-          group_id: string
-          user_id: string
-          rating: number
-          comment: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          user_id: string
-          rating: number
-          comment?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          user_id?: string
-          rating?: number
-          comment?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "location_reviews_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "location_reviews_user_id_fkey"
-            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
