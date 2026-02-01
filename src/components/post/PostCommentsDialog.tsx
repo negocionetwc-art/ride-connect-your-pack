@@ -30,7 +30,7 @@ export const PostCommentsDialog = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-background"
+        className="fixed inset-0 z-[100] bg-background"
       >
         {/* Header estilo Instagram */}
         <header className="flex items-center justify-between px-4 h-14 border-b border-border sticky top-0 bg-background z-10">
@@ -71,7 +71,7 @@ export const PostCommentsDialog = ({
           </ScrollArea>
 
           {/* Input de comentário fixo no bottom - estilo Instagram */}
-          <div className="border-t border-border bg-background p-4">
+          <div className="border-t border-border bg-background p-4 pb-20">
             <CommentInput postId={postId} />
           </div>
         </div>
