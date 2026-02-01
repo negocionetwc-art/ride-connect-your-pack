@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Camera, Image, MapPin, Route, Users, Zap, Loader2 } from 'lucide-react';
+import { X, Camera, Image, Route, Users, Zap, Loader2 } from 'lucide-react';
 import { useCreatePost } from '@/hooks/useCreatePost';
 import { toast } from '@/hooks/use-toast';
+import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 
 interface CreatePostProps {
   onClose: () => void;
@@ -284,21 +285,13 @@ export const CreatePost = ({ onClose, initialType = 'photo' }: CreatePostProps) 
           </div>
         </div>
 
-        {/* Location Input */}
+        {/* Location Input with Autocomplete */}
         <div className="space-y-3">
-          <div className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
-            <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Adicionar localização"
-                disabled={isPending}
-                className="w-full bg-transparent text-sm focus:outline-none disabled:opacity-50"
-              />
-            </div>
-          </div>
+          <LocationAutocomplete
+            value={location}
+            onChange={setLocation}
+            disabled={isPending}
+          />
 
           {/* Future features - disabled for now */}
           <button 
