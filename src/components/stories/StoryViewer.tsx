@@ -61,6 +61,7 @@ export function StoryViewer({
   const progressIntervalRef = useRef<number | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isNavigatingRef = useRef(false);
   const { mutate: markAsViewed } = useStoryView();
   const { preloadUserStories } = useStoryPreloader(userStories);
   const deleteStoryMutation = useDeleteStory();
@@ -141,6 +142,43 @@ export function StoryViewer({
     setProgress(0);
   }, [currentStoryIndex, currentUserIndex, userStories]);
 
+  // Funções seguras de navegação com lock
+  const safeNext = useCallback(() => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+
+    // Cancela qualquer progresso ativo
+    if (progressIntervalRef.current) {
+      cancelAnimationFrame(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    handleNext();
+
+    // Libera navegação após pequeno delay
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 250);
+  }, [handleNext]);
+
+  const safePrevious = useCallback(() => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+
+    // Cancela qualquer progresso ativo
+    if (progressIntervalRef.current) {
+      cancelAnimationFrame(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    handlePrevious();
+
+    // Libera navegação após pequeno delay
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 250);
+  }, [handlePrevious]);
+
   // Callback quando o elemento final (<video>) expõe metadata (duração)
   const handleFinalMediaMounted = useCallback(() => {
     if (currentStory?.media_type === 'video' && videoRef.current) {
@@ -186,7 +224,7 @@ export function StoryViewer({
       
       if (newProgress >= 100) {
         setProgress(100);
-        handleNext();
+        safeNext();
       } else {
         setProgress(newProgress);
         progressIntervalRef.current = requestAnimationFrame(animate);
@@ -252,9 +290,9 @@ export function StoryViewer({
     // Swipe horizontal navega
     if (Math.abs(deltaX) > MIN_SWIPE_DISTANCE && Math.abs(deltaY) < Math.abs(deltaX)) {
       if (deltaX > 0) {
-        handlePrevious();
+        safePrevious();
       } else {
-        handleNext();
+        safeNext();
       }
       touchStartRef.current = null;
       setIsPaused(false);
@@ -267,16 +305,16 @@ export function StoryViewer({
       if (rect) {
         const clickX = e.changedTouches[0].clientX - rect.left;
         if (clickX < rect.width / 3) {
-          handlePrevious();
+          safePrevious();
         } else if (clickX > (rect.width * 2) / 3) {
-          handleNext();
+          safeNext();
         }
       }
     }
 
     touchStartRef.current = null;
     setIsPaused(false);
-  }, [handleNext, handlePrevious, onClose]);
+  }, [safeNext, safePrevious, onClose]);
 
   // Click para desktop
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -285,13 +323,13 @@ export function StoryViewer({
     const width = rect.width;
     
     if (clickX < width / 3) {
-      handlePrevious();
+      safePrevious();
     } else if (clickX > (width * 2) / 3) {
-      handleNext();
+      safeNext();
     } else {
       setIsPaused(prev => !prev);
     }
-  }, [handleNext, handlePrevious]);
+  }, [safeNext, safePrevious]);
 
   // Callbacks para interações
   const handleInteractionPause = useCallback(() => {
@@ -456,7 +494,7 @@ export function StoryViewer({
                     videoRef={videoRef}
                     onLoad={handleFinalMediaMounted}
                     onTimeUpdate={handleVideoTimeUpdate}
-                    onEnded={handleNext}
+                    onEnded={safeNext}
                     className={isMediaReady ? 'opacity-100' : 'opacity-0'}
                   />
                 )}
@@ -516,7 +554,7 @@ export function StoryViewer({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handlePrevious();
+              safePrevious();
             }}
             className="absolute left-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-all opacity-0 hover:opacity-100 hidden md:block"
           >
@@ -525,7 +563,7 @@ export function StoryViewer({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleNext();
+              safeNext();
             }}
             className="absolute right-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-all opacity-0 hover:opacity-100 hidden md:block"
           >
