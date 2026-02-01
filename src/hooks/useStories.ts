@@ -15,6 +15,8 @@ export type StoryWithProfile = Story & {
   };
   is_viewed: boolean;
   viewed_at: string | null;
+  text?: string;
+  text_position?: 'top' | 'center' | 'bottom';
 };
 
 export type UserStories = {
@@ -70,6 +72,8 @@ export function useStories() {
           media_url,
           media_type,
           image_url,
+          text,
+          text_position,
           created_at,
           expires_at,
           profile:profiles!stories_user_id_fkey (
@@ -95,6 +99,8 @@ export function useStories() {
             id,
             user_id,
             image_url,
+            text,
+            text_position,
             created_at,
             expires_at,
             profile:profiles!stories_user_id_fkey (
@@ -150,6 +156,8 @@ export function useStories() {
           image_url: story.image_url || mediaUrl, // Manter compatibilidade
           media_url: mediaUrl,
           media_type: mediaType as 'image' | 'video',
+          text: story.text || undefined,
+          text_position: story.text_position || undefined,
           created_at: story.created_at,
           expires_at: story.expires_at,
           profile: profile,

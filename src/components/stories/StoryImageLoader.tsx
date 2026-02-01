@@ -43,9 +43,9 @@ export const StoryImageLoader = memo(function StoryImageLoader({
       <img
         src={src}
         alt={alt}
-        className={`w-full h-full object-contain transition-opacity duration-200 ${
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
           isLoading ? 'opacity-0' : 'opacity-100'
-        }`}
+        } ${className}`}
         style={{ willChange: 'opacity' }}
         loading="eager"
         decoding="async"
@@ -99,9 +99,9 @@ export const StoryVideoLoader = memo(function StoryVideoLoader({
       <video
         ref={videoRef}
         src={src}
-        className={`w-full h-full object-contain transition-opacity duration-200 ${
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
           isLoading ? 'opacity-0' : 'opacity-100'
-        }`}
+        } ${className}`}
         playsInline
         muted={false}
         preload="metadata"

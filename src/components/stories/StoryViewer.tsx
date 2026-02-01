@@ -9,6 +9,7 @@ import { useStoryPreloader } from '@/hooks/useStoryPreloader';
 import { useStoryMediaGate } from '@/hooks/useStoryMediaGate';
 import { useDeleteStory } from '@/hooks/useDeleteStory';
 import { StoryViewerBackground } from './StoryViewerBackground';
+import { StoryTextOverlay } from './StoryTextOverlay';
 import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
@@ -418,33 +419,48 @@ export function StoryViewer({
           </div>
 
           {/* Mídia - container fixo para evitar layout shift */}
-          <div className="relative w-full max-w-sm aspect-[9/16] mx-auto">
+          <div
+            className="relative w-full max-w-sm mx-auto"
+            style={{
+              height: 'calc(100svh - 120px)',
+              maxHeight: '700px',
+              aspectRatio: '9 / 16',
+            }}
+          >
             <div className="absolute inset-0 rounded-2xl overflow-hidden bg-black">
               {/* Skeleton sempre visível até carregar */}
               {!isMediaReady && (
-                <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+                <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center z-20">
                   <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                 </div>
               )}
               
-              {/* 1) Não renderizar mídia principal antes do preload */}
-              {isMediaReady && mediaSrc ? (
-                currentStory.media_type === 'image' ? (
+              {/* Mídia - nunca desmonta, só muda opacity */}
+              <div className="absolute inset-0">
+                {currentStory.media_type === 'image' ? (
                   <StoryImageLoader
-                    src={mediaSrc}
+                    src={mediaSrc || ''}
                     alt="Story"
                     onLoad={handleFinalMediaMounted}
+                    className={isMediaReady ? 'opacity-100' : 'opacity-0'}
                   />
                 ) : (
                   <StoryVideoLoader
-                    src={mediaSrc}
+                    src={mediaSrc || ''}
                     videoRef={videoRef}
                     onLoad={handleFinalMediaMounted}
                     onTimeUpdate={handleVideoTimeUpdate}
                     onEnded={handleNext}
+                    className={isMediaReady ? 'opacity-100' : 'opacity-0'}
                   />
-                )
-              ) : null}
+                )}
+              </div>
+
+              {/* Texto sobre o story */}
+              <StoryTextOverlay
+                text={currentStory.text}
+                position={currentStory.text_position}
+              />
             </div>
           </div>
 
