@@ -94,7 +94,7 @@ interface LiveMapProps {
   onRiderSelectChange?: (isOpen: boolean) => void;
 }
 
-export const LiveMap = ({ onRiderSelectChange }: LiveMapProps = {}) => {
+export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showSOS, setShowSOS] = useState(false);
