@@ -2,20 +2,57 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Bookmark, MapPin, Clock, Navigation } from 'lucide-react';
 import { Post } from '@/data/mockData';
+import { PostWithProfile } from '@/hooks/useFeedPosts';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { ImageCarousel } from '@/components/ui/image-carousel';
 
 interface PostCardProps {
-  post: Post;
+  post: Post | PostWithProfile;
   index: number;
 }
 
 export const PostCard = ({ post, index }: PostCardProps) => {
-  const [isLiked, setIsLiked] = useState(post.isLiked || false);
-  const [likes, setLikes] = useState(post.likes);
+  // Detectar se é post do banco ou mock
+  const isDbPost = 'profile' in post;
+  
+  const [isLiked, setIsLiked] = useState('isLiked' in post ? post.isLiked || false : false);
+  const [likes, setLikes] = useState(isDbPost ? post.likes_count : (post as Post).likes);
   const [isSaved, setIsSaved] = useState(false);
 
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikes(prev => isLiked ? prev - 1 : prev + 1);
+  };
+
+  // Extrair dados do usuário
+  const userData = isDbPost 
+    ? {
+        name: (post as PostWithProfile).profile.name,
+        username: (post as PostWithProfile).profile.username,
+        avatar: (post as PostWithProfile).profile.avatar_url || '/placeholder.svg',
+        level: 1, // Pode ser adicionado ao profile depois
+      }
+    : (post as Post).user;
+
+  // Extrair dados do post
+  const postData = {
+    images: isDbPost ? (post as PostWithProfile).images : [(post as Post).image],
+    caption: isDbPost ? (post as PostWithProfile).caption : (post as Post).caption,
+    location: isDbPost ? (post as PostWithProfile).location : (post as Post).location,
+    distance: isDbPost ? (post as PostWithProfile).distance_km : (post as Post).distance,
+    duration: isDbPost 
+      ? (post as PostWithProfile).duration_minutes 
+        ? `${(post as PostWithProfile).duration_minutes} min` 
+        : null
+      : (post as Post).duration,
+    timestamp: isDbPost 
+      ? formatDistanceToNow(new Date((post as PostWithProfile).created_at), { 
+          addSuffix: true, 
+          locale: ptBR 
+        })
+      : (post as Post).timestamp,
+    comments: isDbPost ? (post as PostWithProfile).comments_count : (post as Post).comments,
   };
 
   return (
@@ -28,45 +65,54 @@ export const PostCard = ({ post, index }: PostCardProps) => {
       {/* Header */}
       <div className="flex items-center gap-3 p-4">
         <img
-          src={post.user.avatar}
-          alt={post.user.name}
+          src={userData.avatar}
+          alt={userData.name}
           className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30"
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">{post.user.name}</span>
-            <span className="text-xs text-primary">Lvl {post.user.level}</span>
+            <span className="font-semibold text-sm">{userData.name}</span>
+            <span className="text-xs text-primary">Lvl {userData.level}</span>
           </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="w-3 h-3" />
-            {post.location}
-          </div>
+          {postData.location && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="w-3 h-3" />
+              {postData.location}
+            </div>
+          )}
         </div>
-        <span className="text-xs text-muted-foreground">{post.timestamp}</span>
+        <span className="text-xs text-muted-foreground">{postData.timestamp}</span>
       </div>
 
-      {/* Image */}
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={post.image}
-          alt={post.caption}
-          className="w-full h-full object-cover"
-        />
-        
-        {/* Stats Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
-          <div className="flex items-center gap-4 text-white/90 text-sm">
-            <div className="flex items-center gap-1.5">
-              <Navigation className="w-4 h-4 text-primary" />
-              <span className="font-medium">{post.distance} km</span>
+      {/* Images Carousel */}
+      {postData.images && postData.images.length > 0 && (
+        <div className="relative">
+          <ImageCarousel 
+            images={postData.images.filter(img => img)} 
+            alt={postData.caption || 'Post'}
+          />
+          
+          {/* Stats Overlay */}
+          {(postData.distance || postData.duration) && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
+              <div className="flex items-center gap-4 text-white/90 text-sm">
+                {postData.distance && (
+                  <div className="flex items-center gap-1.5">
+                    <Navigation className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{postData.distance} km</span>
+                  </div>
+                )}
+                {postData.duration && (
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{postData.duration}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-primary" />
-              <span className="font-medium">{post.duration}</span>
-            </div>
-          </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Actions */}
       <div className="p-4">
@@ -92,7 +138,7 @@ export const PostCard = ({ post, index }: PostCardProps) => {
 
             <button className="flex items-center gap-1.5">
               <MessageCircle className="w-6 h-6" />
-              <span className="text-sm font-medium">{post.comments}</span>
+              <span className="text-sm font-medium">{postData.comments}</span>
             </button>
 
             <button>
@@ -113,14 +159,16 @@ export const PostCard = ({ post, index }: PostCardProps) => {
         </div>
 
         {/* Caption */}
-        <p className="text-sm">
-          <span className="font-semibold">{post.user.username}</span>{' '}
-          <span className="text-foreground/90">{post.caption}</span>
-        </p>
+        {postData.caption && (
+          <p className="text-sm">
+            <span className="font-semibold">{userData.username}</span>{' '}
+            <span className="text-foreground/90">{postData.caption}</span>
+          </p>
+        )}
 
-        {post.comments > 0 && (
+        {postData.comments > 0 && (
           <button className="text-sm text-muted-foreground mt-2">
-            Ver todos os {post.comments} comentários
+            Ver todos os {postData.comments} comentários
           </button>
         )}
       </div>
