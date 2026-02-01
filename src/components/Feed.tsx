@@ -1,16 +1,25 @@
+import { useState } from 'react';
 import { Stories } from './Stories';
 import { PostCard } from './PostCard';
 import { Bell, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useFeedPosts } from '@/hooks/useFeedPosts';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
+import { NotificationBadge } from '@/components/notifications/NotificationBadge';
+import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 
 interface FeedProps {
   onProfileClick?: (userId: string) => void;
+  onMessagesClick?: () => void;
 }
 
-export const Feed = ({ onProfileClick }: FeedProps) => {
+export const Feed = ({ onProfileClick, onMessagesClick }: FeedProps) => {
   const { data: posts, isLoading, isError } = useFeedPosts();
+  const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Ativar notificações em tempo real
+  useNotificationRealtime();
 
   return (
     <div className="min-h-screen pb-20">
@@ -24,11 +33,17 @@ export const Feed = ({ onProfileClick }: FeedProps) => {
             <motion.button
               whileTap={{ scale: 0.9 }}
               className="relative"
+              onClick={() => setShowNotifications(true)}
+              aria-label="Notificações"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+              <NotificationBadge />
             </motion.button>
-            <motion.button whileTap={{ scale: 0.9 }}>
+            <motion.button 
+              whileTap={{ scale: 0.9 }}
+              onClick={onMessagesClick}
+              aria-label="Mensagens"
+            >
               <MessageCircle className="w-5 h-5" />
             </motion.button>
           </div>
@@ -91,6 +106,12 @@ export const Feed = ({ onProfileClick }: FeedProps) => {
           </>
         )}
       </div>
+
+      {/* Notifications Sheet */}
+      <NotificationsSheet 
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </div>
   );
 };
