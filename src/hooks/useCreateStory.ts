@@ -7,6 +7,8 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB para imagens
 
 export interface CreateStoryData {
   file: File;
+  text?: string;
+  text_position?: 'top' | 'center' | 'bottom';
 }
 
 export function useCreateStory() {
@@ -94,6 +96,8 @@ export function useCreateStory() {
           media_type: mediaType,
           // Manter image_url para compatibilidade (será preenchido automaticamente se necessário)
           image_url: isImage ? publicUrl : null,
+          text: data.text || null,
+          text_position: data.text_position || null,
         })
         .select()
         .single();

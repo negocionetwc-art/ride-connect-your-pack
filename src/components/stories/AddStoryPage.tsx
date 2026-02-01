@@ -21,6 +21,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
   const [preview, setPreview] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [storyText, setStoryText] = useState<string>('');
 
   // Reset state quando fechar
   useEffect(() => {
@@ -29,6 +30,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
       setPreview(null);
       setUploadStatus('idle');
       setErrorMessage(null);
+      setStoryText('');
     }
   }, [isOpen]);
 
@@ -68,7 +70,11 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
     setUploadStatus('uploading');
     
     createStory(
-      { file: selectedFile },
+      { 
+        file: selectedFile,
+        text: storyText.trim() || undefined,
+        text_position: 'center',
+      },
       {
         onSuccess: () => {
           setUploadStatus('success');
@@ -91,6 +97,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
       setPreview(null);
       setUploadStatus('idle');
       setErrorMessage(null);
+      setStoryText('');
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
     } else {
@@ -222,6 +229,19 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
                       playsInline
                     />
                   ) : null}
+
+                  {/* Input de texto sobre o preview */}
+                  {uploadStatus === 'idle' && (
+                    <input
+                      type="text"
+                      placeholder="Digite algo..."
+                      className="absolute bottom-32 left-4 right-4 bg-black/40 text-white px-4 py-2 rounded-xl border border-white/20 focus:border-white/40 focus:outline-none placeholder:text-white/60"
+                      value={storyText}
+                      onChange={(e) => setStoryText(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onFocus={(e) => e.stopPropagation()}
+                    />
+                  )}
 
                   {/* Overlay de status */}
                   <AnimatePresence>
