@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X, MapPin, Loader2, UserPlus, UserCheck } from 'lucide-react';
+import { Navigation, Radio, ChevronUp, X, MapPin, Loader2, UserPlus, UserCheck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon, LatLngExpression } from 'leaflet';
 import type * as L from 'leaflet';
@@ -97,7 +97,6 @@ interface LiveMapProps {
 export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  const [showSOS, setShowSOS] = useState(false);
   const [showNearbyRiders, setShowNearbyRiders] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
@@ -378,24 +377,6 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
             );
           })}
         </MapContainer>
-
-        {/* SOS Button */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setShowSOS(true)}
-          className="absolute bottom-6 right-4 p-4 bg-destructive rounded-full shadow-lg z-[1000]"
-        >
-          <AlertTriangle className="w-6 h-6 text-destructive-foreground" />
-        </motion.button>
-
-        {/* Convoy Mode Button */}
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          className="absolute bottom-6 left-4 flex items-center gap-2 px-4 py-3 bg-card rounded-full shadow-lg border border-border z-[1000]"
-        >
-          <Users className="w-5 h-5 text-primary" />
-          <span className="text-sm font-medium">Modo Comboio</span>
-        </motion.button>
       </div>
 
       {/* Pilotos Próximos - Ícone com Avatares */}
@@ -407,7 +388,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
             exit={{ scale: 0 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowNearbyRiders(true)}
-            className="absolute bottom-24 left-4 p-2 bg-card rounded-full shadow-xl border border-border z-[1000] flex items-center justify-center"
+            className="absolute bottom-32 left-4 p-2 bg-card rounded-full shadow-xl border border-border z-[1000] flex items-center justify-center"
           >
             {(() => {
               // Combinar todos os pilotos (mock + banco)
@@ -470,7 +451,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="absolute bottom-24 left-4 right-4 z-[1000]"
+            className="absolute bottom-32 left-4 right-4 z-[1000]"
           >
             <div className="bg-card rounded-2xl border border-border p-4 shadow-xl">
               <div className="flex items-center justify-between mb-3">
@@ -678,45 +659,6 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
         )}
       </AnimatePresence>
 
-      {/* SOS Modal */}
-      <AnimatePresence>
-        {showSOS && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
-            onClick={() => setShowSOS(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-card rounded-3xl p-6 w-full max-w-sm text-center"
-            >
-              <div className="w-16 h-16 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-8 h-8 text-destructive" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">Enviar SOS?</h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                Sua localização será compartilhada com todos os membros do grupo e contatos de emergência.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowSOS(false)}
-                  className="flex-1 py-3 bg-secondary rounded-xl font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button className="flex-1 py-3 bg-destructive text-destructive-foreground rounded-xl font-semibold">
-                  Enviar SOS
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
