@@ -228,39 +228,45 @@ export const LiveMap = ({ onRiderSelectChange, selectedRider: externalSelectedRi
     <div className="fixed inset-0 flex flex-col" style={{ height: '100vh' }}>
       {/* Header */}
       <header className="sticky top-0 z-40 glass border-b border-border/30 flex-shrink-0">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="flex items-center gap-2">
-            <Radio className="w-5 h-5 text-primary animate-pulse" />
-            <h1 className="font-semibold">Mapa Ao Vivo</h1>
+        <div className="flex items-center justify-between px-4 h-16 gap-3">
+          {/* Título */}
+          <div className="flex items-center gap-2 min-w-0 flex-shrink">
+            <Radio className="w-5 h-5 text-primary animate-pulse flex-shrink-0" />
+            <h1 className="font-semibold text-base whitespace-nowrap truncate">Mapa Ao Vivo</h1>
           </div>
-          <div className="flex items-center gap-3">
+          
+          {/* Controles do lado direito */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Toggle de Compartilhamento */}
             <div className="flex items-center gap-2">
-              <MapPin className={`w-4 h-4 ${isSharing ? 'text-green-500' : 'text-muted-foreground'}`} />
-              <div className="flex flex-col items-end">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Compartilhar</span>
-                  {locationLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  ) : (
-                    <Switch
-                      checked={isSharing}
-                      onCheckedChange={toggleSharing}
-                      disabled={locationLoading}
-                    />
-                  )}
-                </div>
-                {isSharing && (
-                  <span className="text-[10px] text-green-500">Ativo</span>
-                )}
-                {locationError && (
-                  <span className="text-[10px] text-destructive">{locationError}</span>
+              <MapPin className={`w-4 h-4 flex-shrink-0 ${isSharing ? 'text-green-500' : 'text-muted-foreground'}`} />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">Compartilhar</span>
+                {locationLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
+                ) : (
+                  <Switch
+                    checked={isSharing}
+                    onCheckedChange={toggleSharing}
+                    disabled={locationLoading}
+                  />
                 )}
               </div>
+              {isSharing && (
+                <span className="text-[10px] text-green-500 whitespace-nowrap hidden sm:inline">Ativo</span>
+              )}
+              {locationError && (
+                <span className="text-[10px] text-destructive whitespace-nowrap truncate max-w-[80px]" title={locationError}>
+                  {locationError}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span>{onlineRiders.length + onlineLocations.length + (isSharing ? 1 : 0)} online</span>
+            
+            {/* Contador de online */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+              <span className="hidden sm:inline">{onlineRiders.length + onlineLocations.length + (isSharing ? 1 : 0)} online</span>
+              <span className="sm:hidden">{onlineRiders.length + onlineLocations.length + (isSharing ? 1 : 0)}</span>
             </div>
           </div>
         </div>
