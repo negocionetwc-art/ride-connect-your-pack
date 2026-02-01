@@ -6,7 +6,7 @@ import { AddStoryButton } from './stories/AddStoryButton';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const Stories = () => {
-  const { data: userStories, isLoading } = useStories();
+  const { data: userStories, isLoading, isError } = useStories();
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedUserIndex, setSelectedUserIndex] = useState(0);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
@@ -34,6 +34,11 @@ export const Stories = () => {
         </div>
       </div>
     );
+  }
+
+  // Se houver erro, não mostrar nada (silenciosamente falhar)
+  if (isError) {
+    return null;
   }
 
   if (!userStories || userStories.length === 0) {

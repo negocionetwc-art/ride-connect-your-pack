@@ -57,7 +57,12 @@ export function useStories() {
       if (!userId) return [];
 
       // Buscar stories ativos com perfis e status de visualização
-      const { data: storiesData, error: storiesError } = await supabase
+      // Primeiro tentar com os novos campos, se falhar, tentar sem eles
+      let storiesData: any[] | null = null;
+      let storiesError: any = null;
+
+      // Tentar buscar com campos novos primeiro
+      const query1 = supabase
         .from('stories')
         .select(`
           id,
@@ -77,14 +82,39 @@ export function useStories() {
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
+      const result1 = await query1;
+      storiesData = result1.data;
+      storiesError = result1.error;
+
+      // Se falhar por causa de campos que não existem, tentar sem eles
+      if (storiesError && (storiesError.message?.includes('column') || storiesError.message?.includes('does not exist'))) {
+        console.warn('Campos media_url/media_type não existem ainda. Buscando apenas com image_url.');
+        const query2 = supabase
+          .from('stories')
+          .select(`
+            id,
+            user_id,
+            image_url,
+            created_at,
+            expires_at,
+            profile:profiles!stories_user_id_fkey (
+              id,
+              name,
+              username,
+              avatar_url
+            )
+          `)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false });
+
+        const result2 = await query2;
+        storiesData = result2.data;
+        storiesError = result2.error;
+      }
+
       if (storiesError) {
         console.error('Erro ao buscar stories:', storiesError);
-        // Se o erro for relacionado a campos que não existem, retornar array vazio
-        if (storiesError.message?.includes('column') || storiesError.message?.includes('does not exist')) {
-          console.warn('Campos de stories ainda não foram migrados. Retornando array vazio.');
-          return [];
-        }
-        throw storiesError;
+        return [];
       }
 
       if (!storiesData || storiesData.length === 0) {
@@ -106,18 +136,21 @@ export function useStories() {
       });
 
       // Adicionar status de visualização aos stories
-      const storiesWithViews: StoryWithProfile[] = storiesData.map(story => {
+      const storiesWithViews: StoryWithProfile[] = storiesData.map((story: any) => {
         const profile = Array.isArray(story.profile) ? story.profile[0] : story.profile;
         const viewedAt = viewsMap.get(story.id);
         
         // Usar media_url se existir, senão usar image_url (compatibilidade)
-        const mediaUrl = (story as any).media_url || (story as any).image_url || '';
-        const mediaType = (story as any).media_type || 'image';
+        const mediaUrl = story.media_url || story.image_url || '';
+        const mediaType = story.media_type || 'image';
         
         return {
-          ...story,
+          id: story.id,
+          user_id: story.user_id,
           media_url: mediaUrl,
           media_type: mediaType as 'image' | 'video',
+          created_at: story.created_at,
+          expires_at: story.expires_at,
           profile: profile as Profile,
           is_viewed: !!viewedAt,
           viewed_at: viewedAt || null,
