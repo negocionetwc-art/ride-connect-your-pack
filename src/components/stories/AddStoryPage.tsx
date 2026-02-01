@@ -71,9 +71,22 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
   };
 
   const handlePublish = () => {
-    if (!selectedFile) return;
+    console.log('handlePublish chamado', { selectedFile, isPending });
+    
+    if (!selectedFile) {
+      console.error('Nenhum arquivo selecionado');
+      setErrorMessage('Selecione um arquivo antes de publicar');
+      return;
+    }
 
+    if (isPending) {
+      console.warn('Upload já em andamento');
+      return;
+    }
+
+    console.log('Iniciando upload...');
     setUploadStatus('uploading');
+    setErrorMessage(null);
     
     createStory(
       { 
@@ -85,6 +98,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
       },
       {
         onSuccess: () => {
+          console.log('Story publicado com sucesso');
           setUploadStatus('success');
           setTimeout(() => {
             onSuccess?.();
@@ -92,6 +106,7 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
           }, 1000);
         },
         onError: (error) => {
+          console.error('Erro ao publicar story:', error);
           setUploadStatus('error');
           setErrorMessage(error.message || 'Erro ao publicar story');
         },
@@ -345,11 +360,22 @@ export function AddStoryPage({ isOpen, onClose, onSuccess }: AddStoryPageProps) 
                 Cancelar
               </Button>
               <Button
-                onClick={handlePublish}
-                disabled={isPending}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handlePublish();
+                }}
+                disabled={isPending || !selectedFile}
                 className="flex-1 bg-primary hover:bg-primary/90"
               >
-                Publicar
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Publicando...
+                  </>
+                ) : (
+                  'Publicar'
+                )}
               </Button>
             </div>
           </div>
