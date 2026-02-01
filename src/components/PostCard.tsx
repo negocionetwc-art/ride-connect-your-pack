@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Bookmark, MapPin, Clock, Navigation } from 'lucide-react';
 import { Post } from '@/data/mockData';
 import { PostWithProfile } from '@/hooks/useFeedPosts';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ImageCarousel } from '@/components/ui/image-carousel';
+import { FeedMediaCarousel } from '@/components/ui/feed-media-carousel';
+import { PostMediaDetail } from '@/components/ui/post-media-detail';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { useLikePost } from '@/hooks/useLikePost';
 import { PostLikersDialog } from '@/components/post/PostLikersDialog';
@@ -25,6 +26,7 @@ export const PostCard = ({ post, index }: PostCardProps) => {
   const [showLikersDialog, setShowLikersDialog] = useState(false);
   const [showCommentsDialog, setShowCommentsDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showMediaDetail, setShowMediaDetail] = useState(false);
   
   // Hooks para curtidas (apenas para posts do banco)
   const postId = isDbPost ? (post as PostWithProfile).id : '';
@@ -127,17 +129,19 @@ export const PostCard = ({ post, index }: PostCardProps) => {
         <span className="text-xs text-muted-foreground">{postData.timestamp}</span>
       </div>
 
-      {/* Images Carousel */}
+      {/* Media Carousel with Instagram-like aspect ratio */}
       {postData.images && postData.images.length > 0 && (
-        <div className="relative">
-          <ImageCarousel 
+        <div className="relative group">
+          <FeedMediaCarousel 
             images={postData.images.filter(img => img)} 
             alt={postData.caption || 'Post'}
+            onClick={() => setShowMediaDetail(true)}
+            className="cursor-pointer"
           />
           
           {/* Stats Overlay */}
           {(postData.distance || postData.duration) && (
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pointer-events-none">
               <div className="flex items-center gap-4 text-white/90 text-sm">
                 {postData.distance && (
                   <div className="flex items-center gap-1.5">
@@ -255,6 +259,17 @@ export const PostCard = ({ post, index }: PostCardProps) => {
             postCaption={postData.caption || ''}
           />
         </>
+      )}
+
+      {/* Media Detail View - Instagram-like full screen */}
+      {showMediaDetail && (
+        <AnimatePresence>
+          <PostMediaDetail
+            images={postData.images.filter(img => img)}
+            alt={postData.caption || 'Post'}
+            onClose={() => setShowMediaDetail(false)}
+          />
+        </AnimatePresence>
       )}
     </motion.article>
   );

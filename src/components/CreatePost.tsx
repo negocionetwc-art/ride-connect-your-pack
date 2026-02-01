@@ -179,7 +179,7 @@ export const CreatePost = ({ onClose, initialType = 'photo' }: CreatePostProps) 
               <motion.button
                 key={type.id}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedType(type.id)}
+                onClick={() => setSelectedType(type.id as 'photo' | 'route' | 'live' | 'group')}
                 disabled={isPending}
                 className={`relative p-4 rounded-2xl flex flex-col items-center gap-2 transition-colors ${
                   isSelected ? 'bg-card border-2 border-primary' : 'bg-card border border-border'
@@ -201,14 +201,21 @@ export const CreatePost = ({ onClose, initialType = 'photo' }: CreatePostProps) 
         >
           {previews.length > 0 ? (
             <div className="space-y-3">
-              {/* Grid de previews */}
+              {/* Grid de previews - estilo Instagram */}
               <div className={`grid gap-2 ${
                 previews.length === 1 ? 'grid-cols-1' :
                 previews.length === 2 ? 'grid-cols-2' :
                 'grid-cols-3'
               }`}>
                 {previews.map((preview, index) => (
-                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
+                  <div 
+                    key={index} 
+                    className={`relative rounded-xl overflow-hidden group ${
+                      previews.length === 1 
+                        ? 'aspect-[4/5] max-h-[500px]' // Vertical como Instagram
+                        : 'aspect-square' // Quadrado para múltiplas
+                    }`}
+                  >
                     <img
                       src={preview}
                       alt={`Preview ${index + 1}`}
@@ -222,7 +229,7 @@ export const CreatePost = ({ onClose, initialType = 'photo' }: CreatePostProps) 
                       <X className="w-4 h-4" />
                     </button>
                     {/* Número da imagem */}
-                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 text-white text-xs rounded-full">
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 text-white text-xs rounded-full backdrop-blur-sm">
                       {index + 1}
                     </div>
                   </div>
@@ -244,7 +251,7 @@ export const CreatePost = ({ onClose, initialType = 'photo' }: CreatePostProps) 
           ) : (
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="aspect-[4/3] rounded-2xl border-2 border-dashed border-border bg-secondary/30 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-secondary/50 transition-colors"
+              className="aspect-[4/5] max-h-[500px] rounded-2xl border-2 border-dashed border-border bg-secondary/30 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-secondary/50 transition-colors"
             >
               <div className="p-4 rounded-full bg-primary/10">
                 <Image className="w-10 h-10 text-primary" />
