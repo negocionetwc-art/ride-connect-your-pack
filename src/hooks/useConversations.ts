@@ -113,17 +113,33 @@ export function useGetOrCreateConversation() {
       if (error) {
         console.error('Erro ao usar função RPC, tentando criar diretamente:', error);
         
+        // Verificar se a tabela existe antes de tentar usar
+        const { error: tableCheckError } = await supabase
+          .from('conversations')
+          .select('id')
+          .limit(1);
+        
+        if (tableCheckError) {
+          // Tabela não existe - erro crítico
+          throw new Error('A tabela de conversas não existe no banco de dados. Por favor, aplique a migração do sistema de mensagens.');
+        }
+        
         // Fallback: criar conversa diretamente se a função não existir
         const p1 = user.id < otherUserId ? user.id : otherUserId;
         const p2 = user.id < otherUserId ? otherUserId : user.id;
         
         // Verificar se já existe conversa
-        const { data: existingConv } = await supabase
+        const { data: existingConv, error: selectError } = await supabase
           .from('conversations')
           .select('id')
           .eq('participant_1_id', p1)
           .eq('participant_2_id', p2)
-          .single();
+          .maybeSingle();
+        
+        if (selectError && selectError.code !== 'PGRST116') {
+          console.error('Erro ao verificar conversa existente:', selectError);
+          throw selectError;
+        }
         
         if (existingConv) {
           conversationId = existingConv.id;
@@ -140,7 +156,7 @@ export function useGetOrCreateConversation() {
           
           if (insertError) {
             console.error('Erro ao criar conversa:', insertError);
-            throw insertError;
+            throw new Error(`Erro ao criar conversa: ${insertError.message}`);
           }
           
           conversationId = newConv.id;
