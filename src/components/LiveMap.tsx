@@ -99,6 +99,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showNearbyRiders, setShowNearbyRiders] = useState(false);
   const [buttonPosition, setButtonPosition] = useState<{ x: number; y: number } | null>(null); // Posição do botão (null = usar padrão)
+  const [windowHeight, setWindowHeight] = useState(800); // Altura padrão
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
@@ -159,6 +160,16 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
   useEffect(() => {
     onRiderSelectChange?.(!!selectedRider);
   }, [selectedRider, onRiderSelectChange]);
+
+  // Obter altura da janela de forma segura
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setWindowHeight(window.innerHeight);
+      const handleResize = () => setWindowHeight(window.innerHeight);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
 
   // Atualizar localização do mapa quando o usuário compartilhar
   useEffect(() => {
@@ -385,12 +396,6 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
         <motion.div
           drag
           dragMomentum={false}
-          dragConstraints={{
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-          }}
           dragElastic={0.1}
           onDragEnd={(_, info) => {
             // Salvar posição relativa ao viewport
@@ -400,7 +405,7 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
             position: 'fixed',
             left: buttonPosition ? `${buttonPosition.x}px` : '16px',
             bottom: showNearbyRiders ? 'auto' : (buttonPosition ? 'auto' : '8rem'),
-            top: showNearbyRiders ? (buttonPosition ? `${buttonPosition.y}px` : `${window.innerHeight - 200}px`) : (buttonPosition ? `${buttonPosition.y}px` : 'auto'),
+            top: showNearbyRiders ? (buttonPosition ? `${buttonPosition.y}px` : `${windowHeight - 200}px`) : (buttonPosition ? `${buttonPosition.y}px` : 'auto'),
             zIndex: showNearbyRiders ? 1001 : 1000,
             transform: showNearbyRiders && buttonPosition ? 'translate(-50%, -100%)' : 'none',
           }}
@@ -558,9 +563,9 @@ export const LiveMap = ({ onRiderSelectChange }: LiveMapProps) => {
                   </div>
                 )}
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+        </motion.div>
       </AnimatePresence>
 
       {/* Rider Detail Sheet */}
