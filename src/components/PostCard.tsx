@@ -107,28 +107,6 @@ export const PostCard = ({ post, index }: PostCardProps) => {
       transition={{ delay: index * 0.1 }}
       className="bg-card border border-border/50 rounded-2xl overflow-hidden mb-4"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4">
-        <img
-          src={userData.avatar}
-          alt={userData.name}
-          className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/30"
-        />
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">{userData.name}</span>
-            <span className="text-xs text-primary">Lvl {userData.level}</span>
-          </div>
-          {postData.location && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="w-3 h-3" />
-              {postData.location}
-            </div>
-          )}
-        </div>
-        <span className="text-xs text-muted-foreground">{postData.timestamp}</span>
-      </div>
-
       {/* Media Carousel with Instagram-like aspect ratio */}
       {postData.images && postData.images.length > 0 && (
         <div className="relative group">
@@ -138,6 +116,30 @@ export const PostCard = ({ post, index }: PostCardProps) => {
             onClick={() => setShowMediaDetail(true)}
             className="cursor-pointer"
           />
+          
+          {/* Header Overlay - Informações do usuário sobre a imagem */}
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 via-black/30 to-transparent p-3 z-10">
+            <div className="flex items-center gap-3">
+              <img
+                src={userData.avatar}
+                alt={userData.name}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-white/30"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-white">{userData.name}</span>
+                  <span className="text-xs text-primary">Lvl {userData.level}</span>
+                </div>
+                {postData.location && (
+                  <div className="flex items-center gap-1 text-xs text-white/90">
+                    <MapPin className="w-3 h-3" />
+                    {postData.location}
+                  </div>
+                )}
+              </div>
+              <span className="text-xs text-white/80">{postData.timestamp}</span>
+            </div>
+          </div>
           
           {/* Stats Overlay */}
           {(postData.distance || postData.duration) && (
