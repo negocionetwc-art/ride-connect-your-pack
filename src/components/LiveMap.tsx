@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation, AlertTriangle, Users, Radio, ChevronUp, X, MapPin, Loader2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon, LatLngExpression } from 'leaflet';
+import type * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { users, groups } from '@/data/mockData';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +46,45 @@ function MapCenter({ center }: { center: LatLngExpression }) {
     map.setView(center, map.getZoom());
   }, [map, center]);
   return null;
+}
+
+// Componente para o marcador do próprio usuário que atualiza em tempo real
+function OwnLocationMarker({ 
+  location, 
+  avatarUrl, 
+  speed 
+}: { 
+  location: { latitude: number; longitude: number }; 
+  avatarUrl?: string; 
+  speed?: number;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+  
+  useEffect(() => {
+    if (markerRef.current) {
+      markerRef.current.setLatLng([location.latitude, location.longitude]);
+    }
+  }, [location.latitude, location.longitude]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[location.latitude, location.longitude]}
+      icon={createOwnLocationMarkerIcon(avatarUrl, speed)}
+    >
+      <Popup>
+        <div className="text-center">
+          <h3 className="font-semibold text-green-600 dark:text-green-400">Você</h3>
+          <p className="text-xs text-muted-foreground">Compartilhando localização</p>
+          {speed !== undefined && (
+            <p className="text-xs text-primary font-medium">
+              {Math.round(speed)} km/h
+            </p>
+          )}
+        </div>
+      </Popup>
+    </Marker>
+  );
 }
 
 
@@ -217,25 +257,11 @@ export const LiveMap = () => {
 
           {/* Marcador do próprio usuário quando compartilhando */}
           {isSharing && currentLocation && (
-            <Marker
-              position={[currentLocation.latitude, currentLocation.longitude]}
-              icon={createOwnLocationMarkerIcon(
-                currentUserProfile?.avatar_url || undefined,
-                currentLocation.speed
-              )}
-            >
-              <Popup>
-                <div className="text-center">
-                  <h3 className="font-semibold text-green-600 dark:text-green-400">Você</h3>
-                  <p className="text-xs text-muted-foreground">Compartilhando localização</p>
-                  {currentLocation.speed !== undefined && (
-                    <p className="text-xs text-primary font-medium">
-                      {Math.round(currentLocation.speed)} km/h
-                    </p>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
+            <OwnLocationMarker
+              location={currentLocation}
+              avatarUrl={currentUserProfile?.avatar_url || undefined}
+              speed={currentLocation.speed}
+            />
           )}
 
           {/* Marcadores de Grupos */}
