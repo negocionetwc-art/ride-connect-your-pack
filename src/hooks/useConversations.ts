@@ -102,7 +102,8 @@ export function useGetOrCreateConversation() {
         throw new Error('Você precisa seguir este usuário para enviar mensagens');
       }
 
-      // Usar função do banco para obter ou criar conversa
+      // Tentar usar função do banco para obter ou criar conversa
+      let conversationId: string | null = null;
       const { data, error } = await (supabase as any)
         .rpc('get_or_create_conversation', {
           user1_id: user.id,
@@ -110,11 +111,49 @@ export function useGetOrCreateConversation() {
         });
 
       if (error) {
-        console.error('Erro ao criar conversa:', error);
-        throw error;
+        console.error('Erro ao usar função RPC, tentando criar diretamente:', error);
+        
+        // Fallback: criar conversa diretamente se a função não existir
+        const p1 = user.id < otherUserId ? user.id : otherUserId;
+        const p2 = user.id < otherUserId ? otherUserId : user.id;
+        
+        // Verificar se já existe conversa
+        const { data: existingConv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('participant_1_id', p1)
+          .eq('participant_2_id', p2)
+          .single();
+        
+        if (existingConv) {
+          conversationId = existingConv.id;
+        } else {
+          // Criar nova conversa
+          const { data: newConv, error: insertError } = await supabase
+            .from('conversations')
+            .insert({
+              participant_1_id: p1,
+              participant_2_id: p2
+            })
+            .select('id')
+            .single();
+          
+          if (insertError) {
+            console.error('Erro ao criar conversa:', insertError);
+            throw insertError;
+          }
+          
+          conversationId = newConv.id;
+        }
+      } else {
+        conversationId = data as string;
       }
 
-      return data as string; // Retorna o ID da conversa
+      if (!conversationId) {
+        throw new Error('Não foi possível criar ou encontrar a conversa');
+      }
+
+      return conversationId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
