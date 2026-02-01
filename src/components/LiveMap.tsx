@@ -94,6 +94,7 @@ export const LiveMap = () => {
   const [selectedRider, setSelectedRider] = useState<RiderInfo | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showSOS, setShowSOS] = useState(false);
+  const [showNearbyRiders, setShowNearbyRiders] = useState(false);
   const [userLocation, setUserLocation] = useState<LatLngExpression>([-23.5505, -46.6333]); // São Paulo padrão
   const [groupsWithLocation, setGroupsWithLocation] = useState<Group[]>([]);
   const [onlineLocations, setOnlineLocations] = useState<UserLocation[]>([]);
@@ -388,34 +389,116 @@ export const LiveMap = () => {
         </motion.button>
       </div>
 
-      {/* Online Riders List */}
-      <div className="absolute bottom-24 left-4 right-4 z-[1000]">
-        <div className="bg-card rounded-2xl border border-border p-4 shadow-xl">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Navigation className="w-4 h-4 text-primary" />
-              Pilotos Próximos
-            </h3>
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-          </div>
-          
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-            {onlineRiders.map((rider) => (
-              <button
-                key={rider.id}
-                onClick={() => setSelectedRider(rider)}
-                className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
-              >
-                <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full" />
-                <div className="text-left">
-                  <p className="text-xs font-medium">{rider.name.split(' ')[0]}</p>
-                  <p className="text-[10px] text-primary">{rider.speed} km/h</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Pilotos Próximos - Ícone Expansível */}
+      <AnimatePresence>
+        {!showNearbyRiders ? (
+          <motion.button
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowNearbyRiders(true)}
+            className="absolute bottom-24 left-4 p-3 bg-card rounded-full shadow-xl border border-border z-[1000] flex items-center justify-center"
+          >
+            <Navigation className="w-5 h-5 text-primary" />
+            {(onlineRiders.length + onlineLocations.length) > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                {onlineRiders.length + onlineLocations.length}
+              </span>
+            )}
+          </motion.button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute bottom-24 left-4 right-4 z-[1000]"
+          >
+            <div className="bg-card rounded-2xl border border-border p-4 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Navigation className="w-4 h-4 text-primary" />
+                  Pilotos Próximos
+                </h3>
+                <button
+                  onClick={() => setShowNearbyRiders(false)}
+                  className="p-1 rounded-full hover:bg-secondary transition-colors"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                {/* Riders do mock data */}
+                {onlineRiders.map((rider) => (
+                  <button
+                    key={rider.id}
+                    onClick={() => {
+                      setSelectedRider(rider);
+                      setShowNearbyRiders(false);
+                    }}
+                    className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
+                  >
+                    <img src={rider.avatar} alt={rider.name} className="w-8 h-8 rounded-full" />
+                    <div className="text-left">
+                      <p className="text-xs font-medium">{rider.name.split(' ')[0]}</p>
+                      <p className="text-[10px] text-primary">{rider.speed} km/h</p>
+                    </div>
+                  </button>
+                ))}
+                
+                {/* Riders do banco de dados */}
+                {onlineLocations.map((location) => {
+                  const profile = onlineRidersProfiles.get(location.user_id);
+                  if (!profile) return null;
+                  
+                  return (
+                    <button
+                      key={location.id}
+                      onClick={() => {
+                        setSelectedRider({
+                          id: location.user_id,
+                          name: profile.name,
+                          avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+                          bike: profile.bike || undefined,
+                          speed: location.speed_kmh ? Math.round(location.speed_kmh) : undefined,
+                          level: profile.level,
+                          totalKm: profile.total_km,
+                          location: {
+                            lat: location.latitude,
+                            lng: location.longitude,
+                          },
+                        });
+                        setShowNearbyRiders(false);
+                      }}
+                      className="flex-shrink-0 flex items-center gap-2 p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
+                    >
+                      <img
+                        src={profile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'}
+                        alt={profile.name}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <div className="text-left">
+                        <p className="text-xs font-medium">{profile.name.split(' ')[0]}</p>
+                        {location.speed_kmh && (
+                          <p className="text-[10px] text-primary">{Math.round(location.speed_kmh)} km/h</p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                
+                {/* Mensagem quando não há pilotos */}
+                {(onlineRiders.length === 0 && onlineLocations.length === 0) && (
+                  <div className="flex items-center justify-center w-full py-4 text-muted-foreground text-sm">
+                    <p>Nenhum piloto próximo no momento</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Rider Detail Sheet */}
       <AnimatePresence>
