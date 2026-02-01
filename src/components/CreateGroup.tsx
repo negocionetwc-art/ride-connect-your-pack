@@ -95,26 +95,12 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
           category: data.category,
           cover_url: coverUrl,
           owner_id: user.id,
-          member_count: 1,
         })
         .select()
         .single();
 
       if (groupError) {
         throw groupError;
-      }
-
-      // Criar membership como admin
-      const { error: membershipError } = await supabase
-        .from('group_memberships')
-        .insert({
-          group_id: group.id,
-          user_id: user.id,
-          role: 'admin',
-        });
-
-      if (membershipError) {
-        throw membershipError;
       }
 
       return group;

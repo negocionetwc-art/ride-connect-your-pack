@@ -12,12 +12,17 @@ export function useJoinGroup() {
         throw new Error('Usuário não autenticado');
       }
 
+      // Idempotente: se já existir membership (clique duplo / já é membro),
+      // não deve falhar nem sobrescrever role (ex: admin/moderator).
       const { error } = await supabase
         .from('group_memberships')
-        .insert({
+        .upsert({
           group_id: groupId,
           user_id: user.id,
           role: 'member',
+        }, {
+          onConflict: 'group_id,user_id',
+          ignoreDuplicates: true,
         });
 
       if (error) {
