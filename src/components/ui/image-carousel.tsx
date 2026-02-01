@@ -28,25 +28,25 @@ export const ImageCarousel = ({ images, alt = 'Post image', className = '' }: Im
   // Se for apenas uma imagem, não mostrar controles
   if (images.length === 1) {
     return (
-      <div className={`relative aspect-[4/3] overflow-hidden ${className}`}>
+      <div className={`relative aspect-[4/3] overflow-hidden bg-black ${className}`}>
         <img
           src={images[0]}
           alt={alt}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
       </div>
     );
   }
 
   return (
-    <div className={`relative aspect-[4/3] overflow-hidden group ${className}`}>
+    <div className={`relative aspect-[4/3] overflow-hidden bg-black group ${className}`}>
       {/* Imagem atual */}
       <AnimatePresence mode="wait">
         <motion.img
           key={currentIndex}
           src={images[currentIndex]}
           alt={`${alt} ${currentIndex + 1}`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

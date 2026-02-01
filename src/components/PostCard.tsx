@@ -6,6 +6,11 @@ import { PostWithProfile } from '@/hooks/useFeedPosts';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ImageCarousel } from '@/components/ui/image-carousel';
+import { usePostLikes } from '@/hooks/usePostLikes';
+import { useLikePost } from '@/hooks/useLikePost';
+import { PostLikersDialog } from '@/components/post/PostLikersDialog';
+import { PostCommentsDialog } from '@/components/post/PostCommentsDialog';
+import { SharePostDialog } from '@/components/post/SharePostDialog';
 
 interface PostCardProps {
   post: Post | PostWithProfile;
@@ -16,13 +21,51 @@ export const PostCard = ({ post, index }: PostCardProps) => {
   // Detectar se é post do banco ou mock
   const isDbPost = 'profile' in post;
   
-  const [isLiked, setIsLiked] = useState('isLiked' in post ? post.isLiked || false : false);
-  const [likes, setLikes] = useState(isDbPost ? post.likes_count : (post as Post).likes);
   const [isSaved, setIsSaved] = useState(false);
+  const [showLikersDialog, setShowLikersDialog] = useState(false);
+  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  
+  // Hooks para curtidas (apenas para posts do banco)
+  const postId = isDbPost ? (post as PostWithProfile).id : '';
+  const { data: likesData } = usePostLikes(postId);
+  const { mutate: toggleLike } = useLikePost();
+  
+  // Estado local de curtidas (para posts mock ou fallback)
+  const [localIsLiked, setLocalIsLiked] = useState('isLiked' in post ? post.isLiked || false : false);
+  const [localLikes, setLocalLikes] = useState(isDbPost ? post.likes_count : (post as Post).likes);
+  
+  // Usar dados do banco se disponível, senão usar estado local
+  const isLiked = isDbPost && likesData ? likesData.isLiked : localIsLiked;
+  const likes = isDbPost ? post.likes_count : localLikes;
 
   const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikes(prev => isLiked ? prev - 1 : prev + 1);
+    if (isDbPost) {
+      // Post do banco - usar mutation
+      toggleLike({ postId, isLiked });
+    } else {
+      // Post mock - usar estado local
+      setLocalIsLiked(!localIsLiked);
+      setLocalLikes(prev => localIsLiked ? prev - 1 : prev + 1);
+    }
+  };
+  
+  const handleShowLikers = () => {
+    if (isDbPost && likes > 0) {
+      setShowLikersDialog(true);
+    }
+  };
+  
+  const handleShowComments = () => {
+    if (isDbPost) {
+      setShowCommentsDialog(true);
+    }
+  };
+  
+  const handleShare = () => {
+    if (isDbPost) {
+      setShowShareDialog(true);
+    }
   };
 
   // Extrair dados do usuário
@@ -118,30 +161,42 @@ export const PostCard = ({ post, index }: PostCardProps) => {
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-4">
-            <motion.button
-              whileTap={{ scale: 0.8 }}
-              onClick={handleLike}
-              className="flex items-center gap-1.5"
-            >
-              <motion.div
-                animate={isLiked ? { scale: [1, 1.3, 1] } : {}}
-                transition={{ duration: 0.3 }}
+            <div className="flex items-center gap-1.5">
+              <motion.button
+                whileTap={{ scale: 0.8 }}
+                onClick={handleLike}
+                aria-label={isLiked ? 'Descurtir' : 'Curtir'}
               >
-                <Heart
-                  className={`w-6 h-6 transition-colors ${
-                    isLiked ? 'fill-red-500 text-red-500' : 'text-foreground'
-                  }`}
-                />
-              </motion.div>
-              <span className="text-sm font-medium">{likes.toLocaleString()}</span>
-            </motion.button>
+                <motion.div
+                  animate={isLiked ? { scale: [1, 1.3, 1] } : {}}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Heart
+                    className={`w-6 h-6 transition-colors ${
+                      isLiked ? 'fill-red-500 text-red-500' : 'text-foreground'
+                    }`}
+                  />
+                </motion.div>
+              </motion.button>
+              <button
+                onClick={handleShowLikers}
+                className={`text-sm font-medium ${likes > 0 && isDbPost ? 'hover:text-primary cursor-pointer' : ''}`}
+                aria-label="Ver curtidas"
+              >
+                {likes.toLocaleString()}
+              </button>
+            </div>
 
-            <button className="flex items-center gap-1.5">
+            <button 
+              className="flex items-center gap-1.5"
+              onClick={handleShowComments}
+              aria-label="Ver comentários"
+            >
               <MessageCircle className="w-6 h-6" />
               <span className="text-sm font-medium">{postData.comments}</span>
             </button>
 
-            <button>
+            <button onClick={handleShare} aria-label="Compartilhar">
               <Share2 className="w-5 h-5" />
             </button>
           </div>
@@ -167,11 +222,40 @@ export const PostCard = ({ post, index }: PostCardProps) => {
         )}
 
         {postData.comments > 0 && (
-          <button className="text-sm text-muted-foreground mt-2">
+          <button 
+            className="text-sm text-muted-foreground mt-2 hover:text-foreground transition-colors"
+            onClick={handleShowComments}
+          >
             Ver todos os {postData.comments} comentários
           </button>
         )}
       </div>
+
+      {/* Dialog de curtidas */}
+      {isDbPost && (
+        <>
+          <PostLikersDialog
+            postId={postId}
+            isOpen={showLikersDialog}
+            onClose={() => setShowLikersDialog(false)}
+          />
+          
+          <PostCommentsDialog
+            postId={postId}
+            isOpen={showCommentsDialog}
+            onClose={() => setShowCommentsDialog(false)}
+            postImage={postData.images[0]}
+            postCaption={postData.caption || ''}
+          />
+          
+          <SharePostDialog
+            postId={postId}
+            isOpen={showShareDialog}
+            onClose={() => setShowShareDialog(false)}
+            postCaption={postData.caption || ''}
+          />
+        </>
+      )}
     </motion.article>
   );
 };
