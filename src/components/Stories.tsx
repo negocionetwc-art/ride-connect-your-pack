@@ -1,49 +1,110 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
-import { stories } from '@/data/mockData';
+import { useStories } from '@/hooks/useStories';
+import { StoryViewer } from './stories/StoryViewer';
+import { AddStoryButton } from './stories/AddStoryButton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export const Stories = () => {
-  return (
-    <div className="py-4">
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
-        {stories.map((story, index) => (
-          <motion.button
-            key={story.id}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            className="flex flex-col items-center gap-1 flex-shrink-0"
-          >
-            <div
-              className={`relative p-0.5 rounded-full ${
-                story.isViewed
-                  ? 'bg-muted'
-                  : 'bg-gradient-to-br from-primary via-orange-500 to-yellow-500'
-              }`}
-            >
-              <div className="p-0.5 bg-background rounded-full">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                  <img
-                    src={story.thumbnail}
-                    alt={story.user.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {index === 0 && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <div className="p-1 rounded-full bg-primary">
-                        <Plus className="w-4 h-4 text-primary-foreground" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+  const { data: userStories, isLoading } = useStories();
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedUserIndex, setSelectedUserIndex] = useState(0);
+  const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+
+  const handleStoryClick = (userIndex: number, storyIndex: number) => {
+    setSelectedUserIndex(userIndex);
+    setSelectedStoryIndex(storyIndex);
+    setViewerOpen(true);
+  };
+
+  const handleViewerClose = () => {
+    setViewerOpen(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="py-4">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+              <Skeleton className="w-16 h-16 rounded-full" />
+              <Skeleton className="w-12 h-3 rounded" />
             </div>
-            <span className="text-xs text-foreground/80 max-w-[70px] truncate">
-              {index === 0 ? 'Adicionar' : story.user.name.split(' ')[0]}
-            </span>
-          </motion.button>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  if (!userStories || userStories.length === 0) {
+    return (
+      <div className="py-4">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
+          <AddStoryButton />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="py-4">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
+          {/* Botão Adicionar Story */}
+          <AddStoryButton />
+
+          {/* Stories dos usuários */}
+          {userStories.map((userStory, userIndex) => {
+            const firstStory = userStory.stories[0];
+            const hasUnviewed = userStory.has_unviewed;
+
+            return (
+              <motion.button
+                key={userStory.user_id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: (userIndex + 1) * 0.05 }}
+                onClick={() => handleStoryClick(userIndex, 0)}
+                className="flex flex-col items-center gap-1 flex-shrink-0"
+              >
+                <div
+                  className={`relative p-0.5 rounded-full ${
+                    hasUnviewed
+                      ? 'bg-gradient-to-br from-primary via-orange-500 to-yellow-500'
+                      : 'bg-muted'
+                  }`}
+                >
+                  <div className="p-0.5 bg-background rounded-full">
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden">
+                      <img
+                        src={userStory.profile.avatar_url || '/placeholder.svg'}
+                        alt={userStory.profile.name}
+                        className="w-full h-full object-cover"
+                      />
+                      {firstStory && (
+                        <div className="absolute inset-0 bg-black/20" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs text-foreground/80 max-w-[70px] truncate">
+                  {userStory.profile.name.split(' ')[0]}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Story Viewer */}
+      {viewerOpen && userStories.length > 0 && (
+        <StoryViewer
+          userStories={userStories}
+          initialUserIndex={selectedUserIndex}
+          initialStoryIndex={selectedStoryIndex}
+          onClose={handleViewerClose}
+        />
+      )}
+    </>
   );
 };
