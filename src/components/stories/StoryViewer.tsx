@@ -440,7 +440,7 @@ export function StoryViewer({
               
               {/* Mídia - nunca desmonta, só muda opacity */}
               <div className="absolute inset-0">
-                {currentStory.media_type === 'image' ? (
+                {currentStory?.media_type === 'image' ? (
                   <StoryImageLoader
                     src={mediaSrc || ''}
                     alt="Story"
@@ -460,18 +460,18 @@ export function StoryViewer({
               </div>
 
               {/* Texto arrastável sobre o story */}
-              {currentStory.text && (
+              {currentStory?.text && (
                 <StoryDraggableText
                   text={currentStory.text}
-                  color={currentStory.text_color}
-                  bg={currentStory.text_bg || currentStory.text.length > 12}
-                  xPercent={currentStory.text_x_percent ?? 0.5}
-                  yPercent={currentStory.text_y_percent ?? 0.5}
+                  color={currentStory.text_color || '#ffffff'}
+                  bg={currentStory.text_bg || (currentStory.text.length > 12)}
+                  xPercent={currentStory.text_x_percent != null ? Number(currentStory.text_x_percent) : 0.5}
+                  yPercent={currentStory.text_y_percent != null ? Number(currentStory.text_y_percent) : 0.5}
                 />
               )}
 
               {/* Stickers (UPGRADE 5) */}
-              {currentStory.stickers && (
+              {currentStory?.stickers && Array.isArray(currentStory.stickers) && currentStory.stickers.length > 0 && (
                 <StoryStickers
                   stickers={currentStory.stickers}
                   isEditable={false}
@@ -486,7 +486,7 @@ export function StoryViewer({
               )}
 
               {/* CTA Story Patrocinado (UPGRADE 9) */}
-              {currentStory.is_sponsored && currentStory.cta_url && (
+              {currentStory?.is_sponsored && currentStory?.cta_url && (
                 <a
                   href={currentStory.cta_url}
                   target="_blank"
@@ -501,11 +501,13 @@ export function StoryViewer({
           </div>
 
           {/* Interações (like/comment) */}
-          <StoryInteractions
-            storyId={currentStory.id}
-            onPause={handleInteractionPause}
-            onResume={handleInteractionResume}
-          />
+          {currentStory && (
+            <StoryInteractions
+              storyId={currentStory.id}
+              onPause={handleInteractionPause}
+              onResume={handleInteractionResume}
+            />
+          )}
 
           {/* Navegação desktop */}
           <button

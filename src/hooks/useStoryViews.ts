@@ -21,20 +21,10 @@ export function useStoryViews(storyId?: string) {
         return { views: [], count: 0 };
       }
 
-      // Buscar visualizações com perfis
-      const { data, error } = await supabase
+      // Buscar visualizações (simplificado para evitar erros de foreign key)
+      const { data, error, count } = await supabase
         .from('story_views')
-        .select(`
-          id,
-          viewer_id,
-          viewed_at,
-          profile:profiles!story_views_viewer_id_fkey (
-            id,
-            name,
-            username,
-            avatar_url
-          )
-        `)
+        .select('id, viewer_id, viewed_at', { count: 'exact' })
         .eq('story_id', storyId)
         .order('viewed_at', { ascending: false });
 
@@ -43,11 +33,25 @@ export function useStoryViews(storyId?: string) {
         return { views: [], count: 0 };
       }
 
+      // Buscar perfis separadamente se necessário
+      const viewerIds = [...new Set((data || []).map((v: any) => v.viewer_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', viewerIds);
+
+      const profilesMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+
       const views = (data || []).map((view: any) => ({
         id: view.id,
         viewer_id: view.viewer_id,
         viewed_at: view.viewed_at,
-        profile: Array.isArray(view.profile) ? view.profile[0] : view.profile,
+        profile: profilesMap.get(view.viewer_id) || {
+          id: view.viewer_id,
+          name: '',
+          username: '',
+          avatar_url: null,
+        },
       })) as StoryView[];
 
       return {
