@@ -8,6 +8,11 @@ type UserBadge = Database['public']['Tables']['user_badges']['Row'];
 export interface BadgeWithUnlocked extends Badge {
   unlocked: boolean;
   unlockedAt?: string;
+  progress?: {
+    currentValue: number;
+    targetValue: number;
+    percentage: number;
+  };
 }
 
 export function useProfileBadges() {
@@ -35,15 +40,34 @@ export function useProfileBadges() {
 
       if (userBadgesError) throw userBadgesError;
 
+      // Buscar progresso de badges
+      const { data: badgeProgress, error: progressError } = await supabase
+        .from('badge_progress')
+        .select('badge_id, current_value, target_value, percentage, unlocked')
+        .eq('user_id', user.id);
+
+      if (progressError) throw progressError;
+
       const unlockedBadgeIds = new Set(userBadges?.map(ub => ub.badge_id) || []);
       const unlockedAtMap = new Map(
         userBadges?.map(ub => [ub.badge_id, ub.unlocked_at]) || []
+      );
+      const progressMap = new Map(
+        badgeProgress?.map(bp => [
+          bp.badge_id,
+          {
+            currentValue: bp.current_value,
+            targetValue: bp.target_value,
+            percentage: bp.percentage,
+          },
+        ]) || []
       );
 
       return (badges || []).map(badge => ({
         ...badge,
         unlocked: unlockedBadgeIds.has(badge.id),
         unlockedAt: unlockedAtMap.get(badge.id),
+        progress: progressMap.get(badge.id),
       }));
     },
   });

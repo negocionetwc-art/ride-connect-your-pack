@@ -254,10 +254,14 @@ export type Database = {
           bio: string | null
           cover_url: string | null
           created_at: string
+          current_xp: number
           id: string
           level: number
+          level_title: string
           name: string
+          total_hours: number
           total_km: number
+          total_rides: number
           updated_at: string
           username: string
         }
@@ -268,10 +272,14 @@ export type Database = {
           bio?: string | null
           cover_url?: string | null
           created_at?: string
+          current_xp?: number
           id: string
           level?: number
+          level_title?: string
           name: string
+          total_hours?: number
           total_km?: number
+          total_rides?: number
           updated_at?: string
           username: string
         }
@@ -282,10 +290,14 @@ export type Database = {
           bio?: string | null
           cover_url?: string | null
           created_at?: string
+          current_xp?: number
           id?: string
           level?: number
+          level_title?: string
           name?: string
+          total_hours?: number
           total_km?: number
+          total_rides?: number
           updated_at?: string
           username?: string
         }
@@ -490,6 +502,222 @@ export type Database = {
         }
         Relationships: []
       }
+      rides: {
+        Row: {
+          created_at: string
+          description: string | null
+          distance_km: number
+          end_location: string | null
+          end_time: string | null
+          id: string
+          photos: Json
+          route_points: Json
+          start_location: string | null
+          start_time: string
+          status: string
+          tagged_users: string[]
+          duration_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          distance_km?: number
+          end_location?: string | null
+          end_time?: string | null
+          id?: string
+          photos?: Json
+          route_points?: Json
+          start_location?: string | null
+          start_time?: string
+          status?: string
+          tagged_users?: string[]
+          duration_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          distance_km?: number
+          end_location?: string | null
+          end_time?: string | null
+          id?: string
+          photos?: Json
+          route_points?: Json
+          start_location?: string | null
+          start_time?: string
+          status?: string
+          tagged_users?: string[]
+          duration_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_levels: {
+        Row: {
+          badge_icon: string | null
+          created_at: string
+          km_required: number
+          level: number
+          title: string
+        }
+        Insert: {
+          badge_icon?: string | null
+          created_at?: string
+          km_required: number
+          level: number
+          title: string
+        }
+        Update: {
+          badge_icon?: string | null
+          created_at?: string
+          km_required?: number
+          level?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      user_xp_log: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          source_id: string | null
+          user_id: string
+          xp_amount: number
+          xp_source: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          source_id?: string | null
+          user_id: string
+          xp_amount: number
+          xp_source: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          source_id?: string | null
+          user_id?: string
+          xp_amount?: number
+          xp_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_xp_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      badge_progress: {
+        Row: {
+          badge_id: string
+          created_at: string
+          current_value: number
+          id: string
+          percentage: number
+          target_value: number
+          unlocked: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          percentage?: number
+          target_value: number
+          unlocked?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          percentage?: number
+          target_value?: number
+          unlocked?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badge_progress_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "badge_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leaderboard_cache: {
+        Row: {
+          avatar_url: string | null
+          level: number
+          rank_position: number | null
+          total_km: number
+          total_rides: number
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          level: number
+          rank_position?: number | null
+          total_km: number
+          total_rides: number
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          level?: number
+          rank_position?: number | null
+          total_km?: number
+          total_rides?: number
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaderboard_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -505,6 +733,8 @@ export type Database = {
       is_following: { Args: { _profile_id: string }; Returns: boolean }
       is_group_admin: { Args: { _group_id: string }; Returns: boolean }
       is_group_member: { Args: { _group_id: string }; Returns: boolean }
+      update_badge_progress: { Args: { p_user_id: string }; Returns: undefined }
+      refresh_leaderboard: { Args: Record<PropertyKey, never>; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

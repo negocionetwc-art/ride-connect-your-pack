@@ -4,6 +4,7 @@ import { useProfileBadges } from '@/hooks/useProfileBadges';
 import { BadgeDetailDialog } from './BadgeDetailDialog';
 import { useState } from 'react';
 import type { BadgeWithUnlocked } from '@/hooks/useProfileBadges';
+import { Progress } from '@/components/ui/progress';
 
 interface BadgesOverlayProps {
   open: boolean;
@@ -57,17 +58,34 @@ export const BadgesOverlay = ({ open, onClose }: BadgesOverlayProps) => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       onClick={() => setSelectedBadge(badge)}
-                      className={`p-4 rounded-xl border text-center transition-colors ${
+                      className={`p-4 rounded-xl border text-center transition-colors flex flex-col items-center ${
                         badge.unlocked
                           ? 'bg-card border-primary/30 hover:border-primary/50'
-                          : 'bg-secondary/50 border-border/30 opacity-50'
-                      }`}
+                          : 'bg-secondary/50 border-border/30'
+                      } ${badge.unlocked ? '' : 'opacity-75'}`}
                     >
                       <span className="text-4xl block mb-2">{badge.icon}</span>
-                      <p className="text-sm font-medium">{badge.name}</p>
+                      <p className="text-sm font-medium mb-2">{badge.name}</p>
+                      
+                      {/* Barra de progresso minimalista */}
+                      {badge.progress && !badge.unlocked && (
+                        <div className="w-full space-y-1">
+                          <Progress 
+                            value={badge.progress.percentage} 
+                            className="h-1"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {badge.progress.currentValue}/{badge.progress.targetValue}
+                            {badge.requirement_type === 'km' && ' km'}
+                            {badge.requirement_type === 'rides' && ' rolês'}
+                            {badge.requirement_type === 'followers' && ' seguidores'}
+                          </p>
+                        </div>
+                      )}
+                      
                       {badge.unlocked && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Desbloqueado
+                        <p className="text-xs text-primary font-medium mt-1">
+                          ✓ Desbloqueado
                         </p>
                       )}
                     </motion.button>
