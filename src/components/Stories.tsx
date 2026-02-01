@@ -35,8 +35,8 @@ export const Stories = ({ onOverlayChange }: StoriesProps) => {
   ) ?? -1;
 
   const handleOwnAvatarClick = () => {
+    // Se tem story ativo, abrir visualização
     if (hasActiveStory && currentUserStoryIndex >= 0) {
-      // Se tem story ativo, abrir visualização
       setSelectedUserIndex(currentUserStoryIndex);
       setSelectedStoryIndex(0);
       setViewerOpen(true);
@@ -44,6 +44,10 @@ export const Stories = ({ onOverlayChange }: StoriesProps) => {
       // Se não tem, abrir tela de adicionar
       setAddStoryOpen(true);
     }
+  };
+
+  const handleAddStoryClick = () => {
+    setAddStoryOpen(true);
   };
 
   const handleStoryClick = (userIndex: number, storyIndex: number) => {
@@ -98,6 +102,7 @@ export const Stories = ({ onOverlayChange }: StoriesProps) => {
               hasUnviewedStory={false}
               isOwnStory={true}
               onClick={handleOwnAvatarClick}
+              onAddClick={handleAddStoryClick}
               delay={0}
             />
           )}
