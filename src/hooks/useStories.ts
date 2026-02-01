@@ -19,6 +19,7 @@ export type StoryWithProfile = Story & {
   text_position?: 'top' | 'center' | 'bottom';
   text_color?: string;
   text_bg?: boolean;
+  text_y_percent?: number;
 };
 
 export type UserStories = {
@@ -78,6 +79,7 @@ export function useStories() {
           text_position,
           text_color,
           text_bg,
+          text_y_percent,
           created_at,
           expires_at,
           profile:profiles!stories_user_id_fkey (
@@ -103,11 +105,12 @@ export function useStories() {
             id,
             user_id,
             image_url,
-            text,
-            text_position,
-            text_color,
-            text_bg,
-            created_at,
+          text,
+          text_position,
+          text_color,
+          text_bg,
+          text_y_percent,
+          created_at,
             expires_at,
             profile:profiles!stories_user_id_fkey (
               id,
@@ -166,6 +169,7 @@ export function useStories() {
           text_position: story.text_position || undefined,
           text_color: story.text_color || undefined,
           text_bg: story.text_bg || undefined,
+          text_y_percent: story.text_y_percent || undefined,
           created_at: story.created_at,
           expires_at: story.expires_at,
           profile: profile,

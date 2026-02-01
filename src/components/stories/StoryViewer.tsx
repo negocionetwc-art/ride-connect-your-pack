@@ -462,6 +462,7 @@ export function StoryViewer({
                 position={currentStory.text_position}
                 color={currentStory.text_color}
                 bg={currentStory.text_bg}
+                yPercent={currentStory.text_y_percent}
               />
             </div>
           </div>

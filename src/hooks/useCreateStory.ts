@@ -9,6 +9,7 @@ export interface CreateStoryData {
   file: File;
   text?: string;
   text_position?: 'top' | 'center' | 'bottom';
+  text_y_percent?: number;
 }
 
 export function useCreateStory() {
@@ -98,6 +99,7 @@ export function useCreateStory() {
           image_url: isImage ? publicUrl : null,
           text: data.text || null,
           text_position: data.text_position || null,
+          text_y_percent: data.text_y_percent || null,
         })
         .select()
         .single();
