@@ -60,8 +60,8 @@ export function StoryAvatar({
         
         {/* Ícone + para adicionar story - estilo Instagram */}
         {isOwnStory && !hasActiveStory && (
-          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-foreground border-2 border-background flex items-center justify-center shadow-sm">
-            <Plus className="w-4 h-4 text-background" strokeWidth={3} />
+          <div className="absolute -bottom-1 -right-1 w-[26px] h-[26px] rounded-full bg-primary border-2 border-background flex items-center justify-center shadow-sm">
+            <Plus className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
           </div>
         )}
       </div>
