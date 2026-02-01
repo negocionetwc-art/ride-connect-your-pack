@@ -9,6 +9,7 @@ import { CreatePost } from '@/components/CreatePost';
 import { RideTracker } from '@/components/RideTracker';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { NearbyRidersButton } from '@/components/NearbyRidersButton';
+import { MessagesPage } from '@/components/messages/MessagesPage';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('feed');
@@ -18,6 +19,7 @@ const Index = () => {
   const [isStoryOverlayOpen, setIsStoryOverlayOpen] = useState(false);
   const [isRiderDetailOpen, setIsRiderDetailOpen] = useState(false);
   const [selectedRider, setSelectedRider] = useState<any>(null);
+  const [showMessages, setShowMessages] = useState(false);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -43,12 +45,21 @@ const Index = () => {
     setIsStoryOverlayOpen(isOpen);
   };
 
+  const handleMessagesClick = () => {
+    setShowMessages(true);
+  };
+
+  const handleMessagesBack = () => {
+    setShowMessages(false);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'feed':
         return (
           <Feed 
             onProfileClick={handleProfileClick} 
+            onMessagesClick={handleMessagesClick}
             onStoryOverlayChange={handleStoryOverlayChange}
           />
         );
@@ -64,20 +75,25 @@ const Index = () => {
         return (
           <Feed 
             onProfileClick={handleProfileClick} 
+            onMessagesClick={handleMessagesClick}
             onStoryOverlayChange={handleStoryOverlayChange}
           />
         );
     }
   };
 
-  // Ocultar BottomNav e FAB quando story overlay, create ou rider detail está aberto
-  const hideNavigation = isStoryOverlayOpen || showCreate || isRiderDetailOpen;
+  // Ocultar BottomNav e FAB quando story overlay, create, rider detail ou mensagens está aberto
+  const hideNavigation = isStoryOverlayOpen || showCreate || isRiderDetailOpen || showMessages;
   // Ocultar FAB na página do mapa
   const hideFAB = hideNavigation || activeTab === 'map';
 
   return (
     <div className="min-h-screen bg-background">
-      {renderContent()}
+      {showMessages ? (
+        <MessagesPage onBack={handleMessagesBack} />
+      ) : (
+        renderContent()
+      )}
       {!hideNavigation && (
         <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
       )}

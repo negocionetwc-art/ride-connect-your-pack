@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Stories } from './Stories';
 import { PostCard } from './PostCard';
 import { Bell, MessageCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useFeedPosts } from '@/hooks/useFeedPosts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
 import { NotificationBadge } from '@/components/notifications/NotificationBadge';
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
+import { useTotalUnreadMessages } from '@/hooks/useConversations';
 
 interface FeedProps {
   onProfileClick?: (userId: string) => void;
@@ -18,6 +19,7 @@ interface FeedProps {
 export const Feed = ({ onProfileClick, onMessagesClick, onStoryOverlayChange }: FeedProps) => {
   const { data: posts, isLoading, isError } = useFeedPosts();
   const [showNotifications, setShowNotifications] = useState(false);
+  const { data: unreadMessagesCount } = useTotalUnreadMessages();
   
   // Ativar notificações em tempo real
   useNotificationRealtime();
@@ -44,8 +46,22 @@ export const Feed = ({ onProfileClick, onMessagesClick, onStoryOverlayChange }: 
               whileTap={{ scale: 0.9 }}
               onClick={onMessagesClick}
               aria-label="Mensagens"
+              className="relative"
             >
               <MessageCircle className="w-5 h-5" />
+              {unreadMessagesCount && unreadMessagesCount > 0 && (
+                <AnimatePresence>
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center 
+                      bg-primary text-primary-foreground text-[10px] font-bold rounded-full"
+                  >
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                  </motion.span>
+                </AnimatePresence>
+              )}
             </motion.button>
           </div>
         </div>
