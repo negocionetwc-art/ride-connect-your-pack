@@ -81,8 +81,8 @@ export function useRideTracking() {
           .maybeSingle();
 
         if (data) {
-          const routePoints = (data.route_points as RoutePoint[]) || [];
-          const photos = (data.photos as string[]) || [];
+          const routePoints = (data.route_points as unknown as RoutePoint[]) || [];
+          const photos = (data.photos as unknown as string[]) || [];
           
           // Calcular velocidade média e máxima dos pontos existentes
           let totalSpeed = 0;
@@ -384,8 +384,8 @@ export function useRideTracking() {
     onSuccess: (data) => {
       startTimeRef.current = Date.now();
       lastPositionRef.current = {
-        lat: (data.route_points as RoutePoint[])[0]?.lat || 0,
-        lng: (data.route_points as RoutePoint[])[0]?.lng || 0,
+        lat: (data.route_points as unknown as RoutePoint[])[0]?.lat || 0,
+        lng: (data.route_points as unknown as RoutePoint[])[0]?.lng || 0,
       };
       lastTimeRef.current = Date.now();
       lastSpeedRef.current = 0;
@@ -398,11 +398,11 @@ export function useRideTracking() {
         currentDistance: 0,
         elapsedTime: 0,
         currentSpeed: 0,
-        currentAccuracy: (data.route_points as RoutePoint[])[0]?.accuracy || 0,
+        currentAccuracy: (data.route_points as unknown as RoutePoint[])[0]?.accuracy || 0,
         averageSpeed: 0,
         maxSpeed: 0,
-        routePoints: (data.route_points as RoutePoint[]) || [],
-        photos: (data.photos as string[]) || [],
+        routePoints: (data.route_points as unknown as RoutePoint[]) || [],
+        photos: (data.photos as unknown as string[]) || [],
       });
 
       startTracking(data.id);

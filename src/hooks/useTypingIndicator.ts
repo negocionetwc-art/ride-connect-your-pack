@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export function useTypingIndicator(conversationId: string | null) {
@@ -26,7 +25,7 @@ export function useTypingIndicator(conversationId: string | null) {
           const { data: { user } } = await supabase.auth.getUser();
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const typingUserId = payload.new.user_id;
+            const typingUserId = (payload.new as any).user_id;
             
             // Ignorar se for o próprio usuário
             if (typingUserId !== user?.id) {
@@ -43,7 +42,7 @@ export function useTypingIndicator(conversationId: string | null) {
               }, 5000);
             }
           } else if (payload.eventType === 'DELETE') {
-            const deletedUserId = payload.old.user_id;
+            const deletedUserId = (payload.old as any).user_id;
             if (deletedUserId !== user?.id) {
               setIsOtherTyping(false);
               setOtherTypingUser(null);
@@ -78,7 +77,8 @@ export function useTypingIndicator(conversationId: string | null) {
 
     try {
       if (isTyping) {
-        await supabase
+        // Tabela typing_indicators pode não existir
+        await (supabase as any)
           .from('typing_indicators')
           .upsert({
             conversation_id: conversationId,
@@ -88,13 +88,14 @@ export function useTypingIndicator(conversationId: string | null) {
             onConflict: 'conversation_id,user_id'
           });
       } else {
-        await supabase
+        await (supabase as any)
           .from('typing_indicators')
           .delete()
           .eq('conversation_id', conversationId)
           .eq('user_id', user.id);
       }
     } catch (error) {
+      // Ignorar erros se tabela não existe
       console.error('Erro ao atualizar typing indicator:', error);
     }
   }, [conversationId]);

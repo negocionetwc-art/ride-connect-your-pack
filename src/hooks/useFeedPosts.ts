@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type Post = Database['public']['Tables']['posts']['Row'];
-type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export type PostImage = {
   id: string;
@@ -51,17 +50,27 @@ export function useFeedPosts(limit: number = 20) {
         return [];
       }
 
-      // Buscar imagens de todos os posts
+      // Tentar buscar imagens de todos os posts (tabela pode não existir)
       const postIds = postsData.map(post => post.id);
-      const { data: imagesData, error: imagesError } = await supabase
-        .from('post_images')
-        .select('*')
-        .in('post_id', postIds)
-        .order('order_index', { ascending: true });
+      let imagesData: PostImage[] | null = null;
+      
+      try {
+        const { data, error: imagesError } = await (supabase as any)
+          .from('post_images')
+          .select('*')
+          .in('post_id', postIds)
+          .order('order_index', { ascending: true });
 
-      if (imagesError) {
-        console.error('Erro ao buscar imagens:', imagesError);
-        // Não falhar se as imagens não carregarem, apenas log o erro
+        if (imagesError) {
+          // Se tabela não existe, continuar sem as imagens extras
+          if (!imagesError.message?.includes('does not exist')) {
+            console.error('Erro ao buscar imagens:', imagesError);
+          }
+        } else {
+          imagesData = data;
+        }
+      } catch (err) {
+        console.warn('Erro ao buscar post_images:', err);
       }
 
       // Agrupar imagens por post_id

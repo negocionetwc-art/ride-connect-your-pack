@@ -153,7 +153,7 @@ export function useCreatePost() {
         throw new Error(`Erro ao criar publicação: ${postError.message}`);
       }
 
-      // Inserir imagens na tabela post_images
+      // Inserir imagens na tabela post_images (se existir)
       if (imageUrls.length > 0) {
         const postImages = imageUrls.map((url, index) => ({
           post_id: post.id,
@@ -161,14 +161,19 @@ export function useCreatePost() {
           order_index: index,
         }));
 
-        const { error: imagesError } = await supabase
-          .from('post_images')
-          .insert(postImages);
+        try {
+          const { error: imagesError } = await (supabase as any)
+            .from('post_images')
+            .insert(postImages);
 
-        if (imagesError) {
-          console.error('Erro ao inserir imagens:', imagesError);
-          // Não falhar o post se as imagens não forem inseridas na tabela post_images
-          // O post já tem a primeira imagem em image_url para compatibilidade
+          if (imagesError) {
+            // Se tabela não existe, não falhar - o post já tem image_url
+            if (!imagesError.message?.includes('does not exist')) {
+              console.error('Erro ao inserir imagens:', imagesError);
+            }
+          }
+        } catch (err) {
+          console.warn('Tabela post_images pode não existir:', err);
         }
       }
 
