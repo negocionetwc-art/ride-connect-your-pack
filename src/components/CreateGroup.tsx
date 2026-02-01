@@ -46,6 +46,8 @@ interface CreateGroupForm {
 
 export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [isCheckingName, setIsCheckingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const form = useForm<CreateGroupForm>({
@@ -63,20 +65,49 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
         throw new Error('Usuário não autenticado');
       }
 
+      // Verificar se já existe um grupo com o mesmo nome (case-insensitive)
+      const { data: existingGroups, error: checkError } = await supabase
+        .from('groups')
+        .select('id, name')
+        .ilike('name', data.name)
+        .limit(1);
+
+      if (checkError) {
+        throw new Error('Erro ao verificar nome do grupo');
+      }
+
+      if (existingGroups && existingGroups.length > 0) {
+        throw new Error('Já existe um grupo com este nome. Por favor, escolha outro nome.');
+      }
+
       let coverUrl: string | null = null;
 
       // Upload da imagem de capa se fornecida
       if (data.coverImage) {
         const fileExt = data.coverImage.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        const filePath = `group-covers/${fileName}`;
+        const filePath = fileName;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError, data: uploadData } = await supabase.storage
           .from('group-covers')
-          .upload(filePath, data.coverImage);
+          .upload(filePath, data.coverImage, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
         if (uploadError) {
-          throw new Error('Erro ao fazer upload da imagem');
+          console.error('Upload error:', uploadError);
+          
+          // Mensagens de erro mais específicas
+          if (uploadError.message.includes('not found')) {
+            throw new Error('Bucket de imagens não configurado. Contate o administrador.');
+          } else if (uploadError.message.includes('size')) {
+            throw new Error('Imagem muito grande. O tamanho máximo é 5MB.');
+          } else if (uploadError.message.includes('type')) {
+            throw new Error('Formato de imagem não suportado. Use JPG, PNG, WEBP ou GIF.');
+          } else {
+            throw new Error(`Erro ao fazer upload da imagem: ${uploadError.message}`);
+          }
         }
 
         const { data: { publicUrl } } = supabase.storage
@@ -100,6 +131,18 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
         .single();
 
       if (groupError) {
+        // Se houver erro e já fizemos upload, tentar limpar a imagem
+        if (coverUrl) {
+          await supabase.storage
+            .from('group-covers')
+            .remove([`${user.id}/${Date.now()}.${data.coverImage?.name.split('.').pop()}`]);
+        }
+        
+        // Mensagem de erro específica para nome duplicado
+        if (groupError.code === '23505' || groupError.message.includes('unique')) {
+          throw new Error('Já existe um grupo com este nome. Por favor, escolha outro nome.');
+        }
+        
         throw groupError;
       }
 
@@ -128,12 +171,61 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
   const handleCoverChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validar tamanho do arquivo (5MB)
+      if (file.size > 5242880) {
+        toast({
+          title: 'Erro',
+          description: 'Imagem muito grande. O tamanho máximo é 5MB.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validar tipo do arquivo
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Erro',
+          description: 'Formato não suportado. Use JPG, PNG, WEBP ou GIF.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       form.setValue('coverImage', file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setCoverPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const checkGroupNameAvailability = async (name: string) => {
+    if (!name || name.length < 3) {
+      setNameError(null);
+      return;
+    }
+
+    setIsCheckingName(true);
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('id, name')
+        .ilike('name', name)
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setNameError('Este nome já está em uso. Escolha outro nome.');
+      } else {
+        setNameError(null);
+      }
+    } catch (error) {
+      console.error('Error checking name:', error);
+    } finally {
+      setIsCheckingName(false);
     }
   };
 
@@ -156,13 +248,50 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
             <FormField
               control={form.control}
               name="name"
-              rules={{ required: 'Nome do grupo é obrigatório' }}
+              rules={{ 
+                required: 'Nome do grupo é obrigatório',
+                minLength: {
+                  value: 3,
+                  message: 'O nome deve ter pelo menos 3 caracteres'
+                },
+                maxLength: {
+                  value: 50,
+                  message: 'O nome deve ter no máximo 50 caracteres'
+                }
+              }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome do Grupo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Harley Owners SP" {...field} />
+                    <Input 
+                      placeholder="Ex: Harley Owners SP" 
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        const value = e.target.value;
+                        if (value.length >= 3) {
+                          checkGroupNameAvailability(value);
+                        } else {
+                          setNameError(null);
+                        }
+                      }}
+                    />
                   </FormControl>
+                  {isCheckingName && (
+                    <p className="text-xs text-muted-foreground">
+                      Verificando disponibilidade...
+                    </p>
+                  )}
+                  {nameError && (
+                    <p className="text-xs text-destructive">
+                      {nameError}
+                    </p>
+                  )}
+                  {!nameError && !isCheckingName && field.value && field.value.length >= 3 && (
+                    <p className="text-xs text-green-600">
+                      ✓ Nome disponível
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -264,7 +393,10 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createGroupMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={createGroupMutation.isPending || isCheckingName || !!nameError}
+              >
                 {createGroupMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
