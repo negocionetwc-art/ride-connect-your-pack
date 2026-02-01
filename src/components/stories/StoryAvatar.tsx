@@ -8,6 +8,7 @@ interface StoryAvatarProps {
   hasUnviewedStory?: boolean;
   isOwnStory?: boolean;
   onClick: () => void;
+  onAddClick?: () => void;
   delay?: number;
 }
 
@@ -18,6 +19,7 @@ export function StoryAvatar({
   hasUnviewedStory = false,
   isOwnStory = false,
   onClick,
+  onAddClick,
   delay = 0,
 }: StoryAvatarProps) {
   // Determinar o estilo da borda
@@ -31,10 +33,30 @@ export function StoryAvatar({
       return 'bg-gradient-to-br from-primary via-orange-500 to-yellow-500';
     }
     if (hasActiveStory) {
-      // Story já visto - borda cinza
+      // Story ativo do próprio usuário - gradiente colorido
+      if (isOwnStory) {
+        return 'bg-gradient-to-br from-primary via-orange-500 to-yellow-500';
+      }
+      // Story já visto de outro usuário - borda cinza
       return 'bg-muted-foreground/30';
     }
     return 'bg-muted';
+  };
+
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Se é o próprio usuário e tem story ativo, abrir visualização
+    // Se não tem story ativo, abrir tela de adicionar
+    if (isOwnStory && !hasActiveStory && onAddClick) {
+      onAddClick();
+    } else {
+      onClick();
+    }
+  };
+
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAddClick?.();
   };
 
   return (
@@ -42,9 +64,9 @@ export function StoryAvatar({
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: delay * 0.05 }}
-      onClick={onClick}
+      onClick={handleAvatarClick}
       className="flex flex-col items-center gap-1.5 flex-shrink-0"
-      aria-label={isOwnStory ? 'Adicionar Story' : `Ver story de ${name}`}
+      aria-label={isOwnStory ? (hasActiveStory ? 'Ver seu story' : 'Adicionar Story') : `Ver story de ${name}`}
     >
       <div className={`relative p-0.5 rounded-full ${getBorderStyle()}`}>
         <div className="p-0.5 bg-background rounded-full">
@@ -58,9 +80,12 @@ export function StoryAvatar({
           </div>
         </div>
         
-        {/* Ícone + para adicionar story - estilo Instagram */}
-        {isOwnStory && !hasActiveStory && (
-          <div className="absolute -bottom-1 -right-1 w-[26px] h-[26px] rounded-full bg-primary border-2 border-background flex items-center justify-center shadow-sm">
+        {/* Ícone + para adicionar story - sempre visível no próprio avatar */}
+        {isOwnStory && (
+          <div 
+            onClick={handleAddClick}
+            className="absolute -bottom-1 -right-1 w-[26px] h-[26px] rounded-full bg-primary border-2 border-background flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform"
+          >
             <Plus className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
           </div>
         )}
