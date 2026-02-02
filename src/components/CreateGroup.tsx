@@ -34,6 +34,7 @@ import { Loader2, Image as ImageIcon, Calendar, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { BRAZILIAN_STATES } from '@/data/brazilianStates';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CreateGroupProps {
   open: boolean;
@@ -247,7 +248,7 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Criar Novo Grupo</DialogTitle>
           <DialogDescription>
@@ -255,8 +256,9 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <ScrollArea className="flex-1 pr-4">
+          <Form {...form}>
+            <form id="create-group-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Seção 1: Informações Básicas */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -500,32 +502,34 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
                 </div>
               </FormItem>
             </div>
+            </form>
+          </Form>
+        </ScrollArea>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={createGroupMutation.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createGroupMutation.isPending || isCheckingName || !!nameError}
-              >
-                {createGroupMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Criando...
-                  </>
-                ) : (
-                  'Criar Grupo'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={createGroupMutation.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            type="submit"
+            form="create-group-form"
+            disabled={createGroupMutation.isPending || isCheckingName || !!nameError}
+          >
+            {createGroupMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Criando...
+              </>
+            ) : (
+              'Criar Grupo'
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
