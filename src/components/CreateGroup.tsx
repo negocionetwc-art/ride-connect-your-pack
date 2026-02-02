@@ -34,7 +34,6 @@ import { Loader2, Image as ImageIcon, Calendar, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { BRAZILIAN_STATES } from '@/data/brazilianStates';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CreateGroupProps {
   open: boolean;
@@ -248,17 +247,17 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>Criar Novo Grupo</DialogTitle>
           <DialogDescription>
             Crie um grupo para conectar motociclistas com interesses em comum
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto px-6 min-h-0">
           <Form {...form}>
-            <form id="create-group-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form id="create-group-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
             {/* Seção 1: Informações Básicas */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -504,14 +503,15 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
             </div>
             </form>
           </Form>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t bg-background">
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
             disabled={createGroupMutation.isPending}
+            className="w-full sm:w-auto"
           >
             Cancelar
           </Button>
@@ -519,6 +519,7 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
             type="submit"
             form="create-group-form"
             disabled={createGroupMutation.isPending || isCheckingName || !!nameError}
+            className="w-full sm:w-auto"
           >
             {createGroupMutation.isPending ? (
               <>
