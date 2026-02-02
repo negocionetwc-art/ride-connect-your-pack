@@ -105,6 +105,7 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
   const effectiveIsMember = initialIsJoined || !!isGroupMember;
   const effectiveIsAdmin = !!isGroupAdmin || userRole === 'admin';
   const effectiveCanManage = effectiveIsAdmin || userRole === 'moderator';
+  const isGroupOwner = group.owner?.id === currentUser?.id;
 
   // Se o usuário é membro, podemos buscar (via RLS) a role exata dele, para diferenciar moderator/member.
   const { data: myMembershipRole } = useQuery({
@@ -550,16 +551,16 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
                             </p>
                           )}
                           {/* Cargo do membro */}
-                          {editingPosition === member.id && effectiveCanManage ? (
-                            <div className="flex items-center gap-2 mt-2">
+                          {editingPosition === member.id && isGroupOwner ? (
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
                               <Select
                                 value={selectedPosition || ''}
-                                onValueChange={(value) => setSelectedPosition(value as GroupPosition | null)}
+                                onValueChange={(value) => setSelectedPosition(value ? (value as GroupPosition) : null)}
                               >
                                 <SelectTrigger className="h-7 text-xs w-40">
                                   <SelectValue placeholder="Sem cargo" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-h-[200px] z-[100]" position="popper">
                                   <SelectItem value="">Sem cargo</SelectItem>
                                   {GROUP_POSITIONS.map((pos) => (
                                     <SelectItem key={pos.value} value={pos.value}>
@@ -600,23 +601,33 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
                                   {getPositionLabel(member.position)}
                                 </Badge>
                               ) : (
-                                effectiveCanManage && (
+                                isGroupOwner && (
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     className="h-6 px-2 text-xs"
-                                    onClick={() => handleUpdatePosition(member.id, member.position || null)}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdatePosition(member.id, member.position || null);
+                                    }}
                                   >
                                     + Atribuir cargo
                                   </Button>
                                 )
                               )}
-                              {member.position && effectiveCanManage && (
+                              {member.position && isGroupOwner && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   className="h-6 px-2 text-xs"
-                                  onClick={() => handleUpdatePosition(member.id, member.position || null)}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleUpdatePosition(member.id, member.position || null);
+                                  }}
                                 >
                                   Editar
                                 </Button>
