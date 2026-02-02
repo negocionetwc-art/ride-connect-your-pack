@@ -26,7 +26,6 @@ import {
   Image as ImageIcon,
   TrendingUp,
   Calendar,
-  MapPin,
 } from 'lucide-react';
 import { useJoinGroup, useLeaveGroup } from '@/hooks/useGroupMembership';
 import type { GroupWithDetails } from '@/hooks/useGroups';
@@ -42,7 +41,7 @@ import {
 } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { calculateYearsSince, formatFoundedDate, getPositionLabel, GROUP_POSITIONS, BRAZILIAN_STATES, type GroupPosition } from '@/data/brazilianStates';
+
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type GroupMembership = Database['public']['Tables']['group_memberships']['Row'];
@@ -65,8 +64,6 @@ interface GroupDetailsProps {
 export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
   const [userRole, setUserRole] = useState<GroupMembership['role'] | null>(group.userRole || null);
   const [activeTab, setActiveTab] = useState('about');
-  const [editingPosition, setEditingPosition] = useState<string | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<GroupPosition | null>(null);
   const queryClient = useQueryClient();
   const joinGroup = useJoinGroup();
   const leaveGroup = useLeaveGroup();
@@ -239,39 +236,6 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
     setUserRole(null);
   };
 
-  // Mutation para atualizar cargo do membro
-  const updatePositionMutation = useMutation({
-    mutationFn: async ({ membershipId, position }: { membershipId: string; position: GroupPosition | null }) => {
-      const { error } = await supabase
-        .from('group_memberships')
-        .update({ position: position || null })
-        .eq('id', membershipId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group-members', group.id] });
-      toast.success('Cargo atualizado com sucesso');
-      setEditingPosition(null);
-      setSelectedPosition(null);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Erro ao atualizar cargo');
-    },
-  });
-
-  const handleUpdatePosition = (membershipId: string, currentPosition: GroupPosition | null) => {
-    setEditingPosition(membershipId);
-    setSelectedPosition(currentPosition);
-  };
-
-  const handleSavePosition = (membershipId: string) => {
-    if (selectedPosition !== null) {
-      updatePositionMutation.mutate({ membershipId, position: selectedPosition });
-    } else {
-      updatePositionMutation.mutate({ membershipId, position: null });
-    }
-  };
 
   const getRoleBadge = (role: GroupMembership['role']) => {
     switch (role) {
@@ -304,30 +268,8 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl">{group.name}</DialogTitle>
-          <DialogDescription className="space-y-1">
+          <DialogDescription>
             {group.description || 'Sem descrição'}
-            {/* Anos de existência no cabeçalho */}
-            {group.founded_date && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                <Calendar className="w-3 h-3" />
-                <span>
-                  Fundado em {formatFoundedDate(group.founded_date)}
-                  {calculateYearsSince(group.founded_date) !== null && (
-                    <span> • {calculateYearsSince(group.founded_date)} {calculateYearsSince(group.founded_date) === 1 ? 'ano' : 'anos'} de história</span>
-                  )}
-                </span>
-              </div>
-            )}
-            {/* Localização no cabeçalho */}
-            {(group.state || group.city) && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="w-3 h-3" />
-                <span>
-                  {group.city && `${group.city}, `}
-                  {group.state && BRAZILIAN_STATES.find(s => s.value === group.state)?.label}
-                </span>
-              </div>
-            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -452,40 +394,6 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
                   </div>
                 </div>
               )}
-
-              {/* Data de Fundação */}
-              {group.founded_date && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">História do Grupo</h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      Fundado em {formatFoundedDate(group.founded_date)}
-                      {calculateYearsSince(group.founded_date) !== null && (
-                        <span className="font-medium text-foreground">
-                          {' • '}
-                          {calculateYearsSince(group.founded_date)} {calculateYearsSince(group.founded_date) === 1 ? 'ano' : 'anos'} de história
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Localização */}
-              {(group.state || group.city) && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">Localização</h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>
-                      {group.city && `${group.city}, `}
-                      {group.state && BRAZILIAN_STATES.find(s => s.value === group.state)?.label}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               <Separator />
 
               {/* Created Date */}
@@ -549,90 +457,6 @@ export const GroupDetails = ({ group, open, onClose }: GroupDetailsProps) => {
                             <p className="text-xs text-muted-foreground truncate">
                               {member.profile.bike}
                             </p>
-                          )}
-                          {/* Cargo do membro */}
-                          {editingPosition === member.id && isGroupOwner ? (
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <Select
-                                value={selectedPosition || ''}
-                                onValueChange={(value) => setSelectedPosition(value ? (value as GroupPosition) : null)}
-                              >
-                                <SelectTrigger className="h-7 text-xs w-40">
-                                  <SelectValue placeholder="Sem cargo" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[200px] z-[100]" position="popper">
-                                  <SelectItem value="">Sem cargo</SelectItem>
-                                  {GROUP_POSITIONS.map((pos) => (
-                                    <SelectItem key={pos.value} value={pos.value}>
-                                      {pos.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2"
-                                onClick={() => handleSavePosition(member.id)}
-                                disabled={updatePositionMutation.isPending}
-                              >
-                                {updatePositionMutation.isPending ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  'Salvar'
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2"
-                                onClick={() => {
-                                  setEditingPosition(null);
-                                  setSelectedPosition(null);
-                                }}
-                              >
-                                Cancelar
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 mt-1">
-                              {member.position ? (
-                                <Badge variant="outline" className="text-xs">
-                                  {getPositionLabel(member.position)}
-                                </Badge>
-                              ) : (
-                                isGroupOwner && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 px-2 text-xs"
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdatePosition(member.id, member.position || null);
-                                    }}
-                                  >
-                                    + Atribuir cargo
-                                  </Button>
-                                )
-                              )}
-                              {member.position && isGroupOwner && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-2 text-xs"
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleUpdatePosition(member.id, member.position || null);
-                                  }}
-                                >
-                                  Editar
-                                </Button>
-                              )}
-                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-2">

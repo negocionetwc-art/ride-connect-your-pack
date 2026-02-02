@@ -9,6 +9,8 @@ import { NotificationsSheet } from '@/components/notifications/NotificationsShee
 import { NotificationBadge } from '@/components/notifications/NotificationBadge';
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime';
 import { useTotalUnreadMessages } from '@/hooks/useConversations';
+import { AuthBanner } from '@/components/auth/AuthBanner';
+import { useAuthState } from '@/hooks/useAuthState';
 
 interface FeedProps {
   onProfileClick?: (userId: string) => void;
@@ -20,8 +22,9 @@ export const Feed = ({ onProfileClick, onMessagesClick, onStoryOverlayChange }: 
   const { data: posts, isLoading, isError } = useFeedPosts();
   const [showNotifications, setShowNotifications] = useState(false);
   const { data: unreadMessagesCount } = useTotalUnreadMessages();
+  const { isAuthenticated, isLoading: isLoadingAuth } = useAuthState();
   
-  // Ativar notificações em tempo real
+  // Ativar notificações em tempo real apenas se autenticado
   useNotificationRealtime();
 
   return (
@@ -129,6 +132,9 @@ export const Feed = ({ onProfileClick, onMessagesClick, onStoryOverlayChange }: 
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
       />
+
+      {/* Auth Banner for unauthenticated users */}
+      {!isLoadingAuth && !isAuthenticated && <AuthBanner />}
     </div>
   );
 };

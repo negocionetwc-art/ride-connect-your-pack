@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,10 @@ type AuthMode = 'login' | 'signup' | 'forgot-password';
 
 export default function Auth() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [searchParams] = useSearchParams();
+  const initialMode = (searchParams.get('mode') as AuthMode) || 'login';
+  
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +31,7 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
   const { checkUsernameAvailable } = useAuthEmailPassword();
   const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -194,7 +198,7 @@ export default function Auth() {
     try {
       const redirectUrl = `${window.location.origin}/`;
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -217,7 +221,16 @@ export default function Auth() {
         return;
       }
 
-      toast.success('Cadastro realizado! Verifique seu email para confirmar. Pode estar na pasta de spam.');
+      // Verificar se o email precisa de confirmação (não tem sessão)
+      if (data.user && !data.session) {
+        // Mostrar tela de sucesso do cadastro
+        setSignUpSuccess(true);
+        toast.success('Conta criada! Verifique seu email para confirmar.');
+      } else if (data.session) {
+        // Se login automático, ir para home
+        toast.success('Conta criada com sucesso!');
+        navigate('/');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao criar conta');
     } finally {
@@ -310,7 +323,34 @@ export default function Auth() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {mode === 'forgot-password' && forgotPasswordSent ? (
+            {/* Tela de sucesso do cadastro */}
+            {signUpSuccess ? (
+              <div className="text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mx-auto">
+                  <Mail className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-lg">Enviamos um e-mail para você!</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Confirme sua conta clicando no link que enviamos para <strong>{email}</strong>.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Verifique também a pasta de spam.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setMode('login');
+                    setSignUpSuccess(false);
+                    setPassword('');
+                  }}
+                  className="w-full gap-2"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  Ir para o login
+                </Button>
+              </div>
+            ) : mode === 'forgot-password' && forgotPasswordSent ? (
               <div className="text-center space-y-4">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mx-auto">
                   <CheckCircle2 className="w-8 h-8 text-primary" />

@@ -114,7 +114,7 @@ export function useGetOrCreateConversation() {
         console.error('Erro ao usar função RPC, tentando criar diretamente:', error);
         
         // Verificar se a tabela existe antes de tentar usar
-        const { error: tableCheckError } = await supabase
+        const { error: tableCheckError } = await (supabase as any)
           .from('conversations')
           .select('id')
           .limit(1);
@@ -129,7 +129,7 @@ export function useGetOrCreateConversation() {
         const p2 = user.id < otherUserId ? otherUserId : user.id;
         
         // Verificar se já existe conversa
-        const { data: existingConv, error: selectError } = await supabase
+        const { data: existingConv, error: selectError } = await (supabase as any)
           .from('conversations')
           .select('id')
           .eq('participant_1_id', p1)
@@ -145,7 +145,7 @@ export function useGetOrCreateConversation() {
           conversationId = existingConv.id;
         } else {
           // Criar nova conversa
-          const { data: newConv, error: insertError } = await supabase
+          const { data: newConv, error: insertError } = await (supabase as any)
             .from('conversations')
             .insert({
               participant_1_id: p1,
