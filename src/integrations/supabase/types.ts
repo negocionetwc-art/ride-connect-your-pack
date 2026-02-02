@@ -95,6 +95,67 @@ export type Database = {
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string | null
+          last_message_by: string | null
+          last_message_text: string | null
+          participant_1_id: string
+          participant_2_id: string
+          unread_count_p1: number | null
+          unread_count_p2: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_by?: string | null
+          last_message_text?: string | null
+          participant_1_id: string
+          participant_2_id: string
+          unread_count_p1?: number | null
+          unread_count_p2?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_by?: string | null
+          last_message_text?: string | null
+          participant_1_id?: string
+          participant_2_id?: string
+          unread_count_p1?: number | null
+          unread_count_p2?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_last_message_by_fkey"
+            columns: ["last_message_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_1_id_fkey"
+            columns: ["participant_1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_2_id_fkey"
+            columns: ["participant_2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_memberships: {
         Row: {
           group_id: string
@@ -211,6 +272,73 @@ export type Database = {
             foreignKeyName: "leaderboard_cache_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          media_url: string | null
+          post_id: string | null
+          reaction: string | null
+          read_at: string | null
+          sender_id: string
+          type: Database["public"]["Enums"]["message_type"]
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          media_url?: string | null
+          post_id?: string | null
+          reaction?: string | null
+          read_at?: string | null
+          sender_id: string
+          type?: Database["public"]["Enums"]["message_type"]
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          media_url?: string | null
+          post_id?: string | null
+          reaction?: string | null
+          read_at?: string | null
+          sender_id?: string
+          type?: Database["public"]["Enums"]["message_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -525,29 +653,65 @@ export type Database = {
       stories: {
         Row: {
           created_at: string
+          cta_url: string | null
           expires_at: string
+          highlight_id: string | null
           id: string
           image_url: string
+          is_sponsored: boolean | null
           media_type: Database["public"]["Enums"]["story_media_type"]
           media_url: string
+          stickers: Json | null
+          text: string | null
+          text_bg: boolean | null
+          text_color: string | null
+          text_position:
+            | Database["public"]["Enums"]["story_text_position"]
+            | null
+          text_x_percent: number | null
+          text_y_percent: number | null
           user_id: string
         }
         Insert: {
           created_at?: string
+          cta_url?: string | null
           expires_at?: string
+          highlight_id?: string | null
           id?: string
           image_url: string
+          is_sponsored?: boolean | null
           media_type?: Database["public"]["Enums"]["story_media_type"]
           media_url?: string
+          stickers?: Json | null
+          text?: string | null
+          text_bg?: boolean | null
+          text_color?: string | null
+          text_position?:
+            | Database["public"]["Enums"]["story_text_position"]
+            | null
+          text_x_percent?: number | null
+          text_y_percent?: number | null
           user_id: string
         }
         Update: {
           created_at?: string
+          cta_url?: string | null
           expires_at?: string
+          highlight_id?: string | null
           id?: string
           image_url?: string
+          is_sponsored?: boolean | null
           media_type?: Database["public"]["Enums"]["story_media_type"]
           media_url?: string
+          stickers?: Json | null
+          text?: string | null
+          text_bg?: boolean | null
+          text_color?: string | null
+          text_position?:
+            | Database["public"]["Enums"]["story_text_position"]
+            | null
+          text_x_percent?: number | null
+          text_y_percent?: number | null
           user_id?: string
         }
         Relationships: [
@@ -665,6 +829,39 @@ export type Database = {
           {
             foreignKeyName: "story_views_viewer_id_fkey"
             columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      typing_indicators: {
+        Row: {
+          conversation_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "typing_indicators_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "typing_indicators_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -886,6 +1083,14 @@ export type Database = {
           viewed_at: string
         }[]
       }
+      get_or_create_conversation: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: string
+      }
+      get_total_unread_messages: {
+        Args: { user_uuid: string }
+        Returns: number
+      }
       get_unread_notifications_count: {
         Args: { user_uuid: string }
         Returns: number
@@ -904,6 +1109,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: undefined
       }
+      mark_messages_as_read: {
+        Args: { conv_id: string; user_uuid: string }
+        Returns: undefined
+      }
       refresh_leaderboard: { Args: never; Returns: undefined }
       update_badge_progress: { Args: { p_user_id: string }; Returns: undefined }
     }
@@ -918,6 +1127,7 @@ export type Database = {
         | "weather"
         | "special"
       group_role: "admin" | "moderator" | "member"
+      message_type: "text" | "image" | "voice" | "post_share" | "reaction"
       notification_type:
         | "like"
         | "comment"
@@ -927,6 +1137,7 @@ export type Database = {
         | "comment_like"
         | "reply"
       story_media_type: "image" | "video"
+      story_text_position: "top" | "center" | "bottom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1065,6 +1276,7 @@ export const Constants = {
         "special",
       ],
       group_role: ["admin", "moderator", "member"],
+      message_type: ["text", "image", "voice", "post_share", "reaction"],
       notification_type: [
         "like",
         "comment",
@@ -1075,6 +1287,7 @@ export const Constants = {
         "reply",
       ],
       story_media_type: ["image", "video"],
+      story_text_position: ["top", "center", "bottom"],
     },
   },
 } as const
