@@ -29,8 +29,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Image as ImageIcon } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Calendar, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { BRAZILIAN_STATES } from '@/data/brazilianStates';
+import { Separator } from '@/components/ui/separator';
 
 interface CreateGroupProps {
   open: boolean;
@@ -41,6 +44,9 @@ interface CreateGroupForm {
   name: string;
   description: string;
   category: 'Marca' | 'Região' | 'Estilo';
+  foundedDate?: string;
+  state?: string;
+  city?: string;
   coverImage?: File;
 }
 
@@ -55,6 +61,9 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
       name: '',
       description: '',
       category: 'Marca',
+      foundedDate: '',
+      state: '',
+      city: '',
     },
   });
 
@@ -126,6 +135,9 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
           category: data.category,
           cover_url: coverUrl,
           owner_id: user.id,
+          founded_date: data.foundedDate || null,
+          state: data.state || null,
+          city: data.city || null,
         })
         .select()
         .single();
@@ -244,145 +256,250 @@ export const CreateGroup = ({ open, onClose }: CreateGroupProps) => {
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              rules={{ 
-                required: 'Nome do grupo é obrigatório',
-                minLength: {
-                  value: 3,
-                  message: 'O nome deve ter pelo menos 3 caracteres'
-                },
-                maxLength: {
-                  value: 50,
-                  message: 'O nome deve ter no máximo 50 caracteres'
-                }
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome do Grupo</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ex: Harley Owners SP" 
-                      {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        const value = e.target.value;
-                        if (value.length >= 3) {
-                          checkGroupNameAvailability(value);
-                        } else {
-                          setNameError(null);
-                        }
-                      }}
-                    />
-                  </FormControl>
-                  {isCheckingName && (
-                    <p className="text-xs text-muted-foreground">
-                      Verificando disponibilidade...
-                    </p>
-                  )}
-                  {nameError && (
-                    <p className="text-xs text-destructive">
-                      {nameError}
-                    </p>
-                  )}
-                  {!nameError && !isCheckingName && field.value && field.value.length >= 3 && (
-                    <p className="text-xs text-green-600">
-                      ✓ Nome disponível
-                    </p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Descreva o propósito do grupo..."
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Uma descrição ajuda outros motociclistas a entenderem o grupo
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="category"
-              rules={{ required: 'Categoria é obrigatória' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoria</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma categoria" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Marca">Marca</SelectItem>
-                      <SelectItem value="Região">Região</SelectItem>
-                      <SelectItem value="Estilo">Estilo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormItem>
-              <FormLabel>Imagem de Capa (opcional)</FormLabel>
-              <div className="space-y-2">
-                {coverPreview ? (
-                  <div className="relative">
-                    <img
-                      src={coverPreview}
-                      alt="Preview"
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => {
-                        setCoverPreview(null);
-                        form.setValue('coverImage', undefined);
-                      }}
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Clique para fazer upload
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleCoverChange}
-                    />
-                  </label>
-                )}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Seção 1: Informações Básicas */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Users className="w-4 h-4" />
+                <span>Informações Básicas</span>
               </div>
-            </FormItem>
+              
+              <FormField
+                control={form.control}
+                name="name"
+                rules={{ 
+                  required: 'Nome do grupo é obrigatório',
+                  minLength: {
+                    value: 3,
+                    message: 'O nome deve ter pelo menos 3 caracteres'
+                  },
+                  maxLength: {
+                    value: 50,
+                    message: 'O nome deve ter no máximo 50 caracteres'
+                  }
+                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Grupo</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ex: Harley Owners SP" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          const value = e.target.value;
+                          if (value.length >= 3) {
+                            checkGroupNameAvailability(value);
+                          } else {
+                            setNameError(null);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    {isCheckingName && (
+                      <p className="text-xs text-muted-foreground">
+                        Verificando disponibilidade...
+                      </p>
+                    )}
+                    {nameError && (
+                      <p className="text-xs text-destructive">
+                        {nameError}
+                      </p>
+                    )}
+                    {!nameError && !isCheckingName && field.value && field.value.length >= 3 && (
+                      <p className="text-xs text-green-600">
+                        ✓ Nome disponível
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição (opcional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Descreva o propósito do grupo..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Uma descrição ajuda outros motociclistas a entenderem o grupo
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                rules={{ required: 'Categoria é obrigatória' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoria</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Marca">Marca</SelectItem>
+                        <SelectItem value="Região">Região</SelectItem>
+                        <SelectItem value="Estilo">Estilo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Seção 2: Data de Fundação */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Calendar className="w-4 h-4" />
+                <span>Data de Fundação</span>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="foundedDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Fundação (opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date"
+                        max={new Date().toISOString().split('T')[0]}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Quando o grupo foi fundado? Isso ajudará a mostrar a história do grupo.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Seção 3: Localização */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <MapPin className="w-4 h-4" />
+                <span>Localização</span>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="state"
+                rules={{ required: 'Estado é obrigatório' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o estado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {BRAZILIAN_STATES.map((state) => (
+                          <SelectItem key={state.value} value={state.value}>
+                            {state.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Município (opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ex: São Paulo" 
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Cidade onde o grupo está localizado
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Seção 4: Imagem de Capa */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <ImageIcon className="w-4 h-4" />
+                <span>Imagem de Capa</span>
+              </div>
+
+              <FormItem>
+                <FormLabel>Imagem de Capa (opcional)</FormLabel>
+                <div className="space-y-2">
+                  {coverPreview ? (
+                    <div className="relative">
+                      <img
+                        src={coverPreview}
+                        alt="Preview"
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => {
+                          setCoverPreview(null);
+                          form.setValue('coverImage', undefined);
+                        }}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                          Clique para fazer upload
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleCoverChange}
+                      />
+                    </label>
+                  )}
+                </div>
+              </FormItem>
+            </div>
 
             <DialogFooter>
               <Button
