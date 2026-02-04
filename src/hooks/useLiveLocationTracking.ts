@@ -18,10 +18,12 @@ export function useLiveLocationTracking() {
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // TTL para considerar um rider "online" no mapa.
-  // 10s era agressivo demais e escondia riders com GPS parado / app em background.
-  // Mantemos uma janela maior para UX social (similar a apps modernos).
-  const ONLINE_TTL_MS = 2 * 60 * 1000; // 2 minutos
+  // Observação:
+  // A UI de “Pilotos próximos” considera "online" apenas pelo is_online=true.
+  // Para manter consistência e garantir que os avatares apareçam no mapa,
+  // aqui também tratamos como online qualquer registro com is_online=true.
+  // (Se quiser evitar “ghost riders”, o ideal é garantir que is_online seja
+  // desligado corretamente quando o app fecha ou a pessoa para de compartilhar.)
 
   useEffect(() => {
     // Carregar localizações iniciais
@@ -179,19 +181,12 @@ export function useLiveLocationTracking() {
     };
   }, []);
 
-  // Filtrar apenas riders online (updated_at dentro do TTL)
+  // Filtrar apenas riders online (consistente com NearbyRidersButton)
   const getOnlineRiders = () => {
-    const now = Date.now();
     const onlineRiders: LiveLocationData[] = [];
 
     liveLocations.forEach((location) => {
-      const updatedAt = new Date(location.updated_at).getTime();
-      const timeSinceUpdate = now - updatedAt;
-
-      // Considerar online se:
-      // - is_online = true
-      // - updated_at dentro do TTL (ou se por algum motivo vier no futuro, tolerar)
-      if (location.is_online && (timeSinceUpdate <= ONLINE_TTL_MS || timeSinceUpdate < 0)) {
+      if (location.is_online) {
         onlineRiders.push(location);
       }
     });
