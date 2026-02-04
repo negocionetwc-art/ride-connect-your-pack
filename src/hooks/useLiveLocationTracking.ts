@@ -18,6 +18,11 @@ export function useLiveLocationTracking() {
   const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // TTL para considerar um rider "online" no mapa.
+  // 10s era agressivo demais e escondia riders com GPS parado / app em background.
+  // Mantemos uma janela maior para UX social (similar a apps modernos).
+  const ONLINE_TTL_MS = 2 * 60 * 1000; // 2 minutos
+
   useEffect(() => {
     // Carregar localizações iniciais
     const loadInitialLocations = async () => {
@@ -174,7 +179,7 @@ export function useLiveLocationTracking() {
     };
   }, []);
 
-  // Filtrar apenas riders online (updated_at < 10s)
+  // Filtrar apenas riders online (updated_at dentro do TTL)
   const getOnlineRiders = () => {
     const now = Date.now();
     const onlineRiders: LiveLocationData[] = [];
@@ -183,8 +188,10 @@ export function useLiveLocationTracking() {
       const updatedAt = new Date(location.updated_at).getTime();
       const timeSinceUpdate = now - updatedAt;
 
-      // Considerar online se atualizado nos últimos 10 segundos
-      if (location.is_online && timeSinceUpdate < 10000) {
+      // Considerar online se:
+      // - is_online = true
+      // - updated_at dentro do TTL (ou se por algum motivo vier no futuro, tolerar)
+      if (location.is_online && (timeSinceUpdate <= ONLINE_TTL_MS || timeSinceUpdate < 0)) {
         onlineRiders.push(location);
       }
     });
